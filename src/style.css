@@ -112,6 +112,7 @@ main:focus {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.25rem;
   margin-bottom: 2rem;
+  align-items: start;
 }
 
 h3 {
@@ -278,7 +279,7 @@ input:focus-visible {
 }
 
 .transcript-entries {
-  max-height: 400px;
+  max-height: 280px;
   overflow-y: auto;
   overflow-x: auto;
   border: var(--border);
