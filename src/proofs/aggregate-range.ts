@@ -7,13 +7,14 @@
 
 import type { RistrettoPointValue } from '../crypto/ristretto';
 import { Transcript } from '../crypto/transcript';
+import { proveRange, verifyRange, type RangeProof } from './range-proof';
 
 /**
  * Aggregated range proof.
  */
 export interface AggregateRangeProof {
-  // Implemented in Phase 5
-  placeholder: string;
+  valueCount: number;
+  proofs: RangeProof[];
 }
 
 /**
@@ -29,14 +30,30 @@ export function proveAggregateRange(
   values: bigint[],
   blinders: bigint[],
   commitments: RistrettoPointValue[],
-  _transcript: Transcript
+  transcript: Transcript
 ): AggregateRangeProof {
   if (values.length !== blinders.length || values.length !== commitments.length) {
     throw new Error('All input arrays must have the same length');
   }
 
-  // Implemented in Phase 5
-  return { placeholder: 'not implemented' };
+  if (values.length === 0) {
+    throw new Error('At least one value is required for aggregation');
+  }
+
+  const proofs: RangeProof[] = [];
+  transcript.appendLabel('aggregate-range:start');
+  transcript.appendScalar('aggregate-count', BigInt(values.length));
+  for (let i = 0; i < values.length; i++) {
+    transcript.appendLabel(`aggregate-item:${i}`);
+    const itemTranscript = new Transcript('bulletproofs-aggregate-item');
+    const proof = proveRange(values[i], blinders[i], commitments[i], itemTranscript);
+    proofs.push(proof);
+  }
+
+  return {
+    valueCount: values.length,
+    proofs,
+  };
 }
 
 /**
@@ -48,10 +65,23 @@ export function proveAggregateRange(
  * @returns true if valid, false otherwise
  */
 export function verifyAggregateRange(
-  _proof: AggregateRangeProof,
-  _commitments: RistrettoPointValue[],
-  _transcript: Transcript
+  proof: AggregateRangeProof,
+  commitments: RistrettoPointValue[],
+  transcript: Transcript
 ): boolean {
-  // Implemented in Phase 5
-  return false;
+  if (proof.valueCount !== commitments.length || proof.proofs.length !== commitments.length) {
+    return false;
+  }
+
+  transcript.appendLabel('aggregate-range:start');
+  transcript.appendScalar('aggregate-count', BigInt(commitments.length));
+  for (let i = 0; i < commitments.length; i++) {
+    transcript.appendLabel(`aggregate-item:${i}`);
+    const itemTranscript = new Transcript('bulletproofs-aggregate-item');
+    if (!verifyRange(proof.proofs[i], commitments[i], itemTranscript)) {
+      return false;
+    }
+  }
+
+  return true;
 }

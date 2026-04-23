@@ -59,12 +59,23 @@ export function proveIPA(
     throw new Error('Vector length must be a power of 2');
   }
 
+  // Ensure witness vectors open the claimed commitment relation before recursion.
+  const c = innerProductScalars(a, b);
+  const expectedP = addPoints(
+    addPoints(innerProductPoints(a, G), innerProductPoints(b, H)),
+    scalarMult(c, u)
+  );
+  if (!expectedP.equals(P)) {
+    throw new Error('IPA witness does not open the supplied commitment point');
+  }
+
   const L: RistrettoPointValue[] = [];
   const R: RistrettoPointValue[] = [];
   let a_vec = [...a];
   let b_vec = [...b];
   let G_vec = [...G];
   let H_vec = [...H];
+  let P_folded = P;
 
   for (let round = 0; round < Math.log2(n); round++) {
     const n_half = a_vec.length / 2;
@@ -105,6 +116,11 @@ export function proveIPA(
     transcript.appendPoint(`R${round}`, R_point);
     const x = transcript.challengeScalar(`x${round}`);
     const x_inv = invScalar(x);
+    const x_sq = mulScalars(x, x);
+    const x_inv_sq = invScalar(x_sq);
+
+    P_folded = addPoints(P_folded, scalarMult(x_sq, L_point));
+    P_folded = addPoints(P_folded, scalarMult(x_inv_sq, R_point));
 
     // Fold
     const newA: bigint[] = [];
@@ -153,6 +169,18 @@ export function proveIPA(
     H_vec = newH;
   }
 
+  const finalInner = mulScalars(a_vec[0], b_vec[0]);
+  const finalCheck = addPoints(
+    addPoints(
+      scalarMult(a_vec[0], G_vec[0]),
+      scalarMult(b_vec[0], H_vec[0])
+    ),
+    scalarMult(finalInner, u)
+  );
+  if (!finalCheck.equals(P_folded)) {
+    throw new Error('IPA folding consistency check failed');
+  }
+
   return {
     L,
     R,
@@ -198,12 +226,12 @@ export function verifyIPA(
     challenges.push(transcript.challengeScalar(`x${round}`));
   }
 
-  // Compute s_i = product over round j of x_j^(bit j of i)
+  // Compute s_i = product over rounds, using the split order from recursion.
   const s: bigint[] = [];
   for (let i = 0; i < n; i++) {
     let si = 1n;
     for (let j = 0; j < k; j++) {
-      const bit = (i >> j) & 1;
+      const bit = (i >> (k - 1 - j)) & 1;
       if (bit === 1) {
         si = mulScalars(si, challenges[j]);
       } else {

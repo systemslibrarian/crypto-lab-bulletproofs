@@ -88,12 +88,21 @@ export class Transcript {
   challengeScalar(label: string): bigint {
     const labelBytes = new TextEncoder().encode(label);
     const combined = this.concatBytes(labelBytes, this.state);
-    const challengeBytes = sha512(combined);
-    
+    let challengeBytes = sha512(combined);
+    let challenge = bytesToScalar(challengeBytes.slice(0, 32));
+
+    // IPA verification requires invertible challenges, so avoid zero deterministically.
+    if (challenge === 0n) {
+      challengeBytes = sha512(this.concatBytes(challengeBytes, new Uint8Array([1])));
+      challenge = bytesToScalar(challengeBytes.slice(0, 32));
+      if (challenge === 0n) {
+        challenge = 1n;
+      }
+    }
+
     // Update state for next round
     this.state = challengeBytes;
-    
-    const challenge = bytesToScalar(challengeBytes.slice(0, 32));
+
     this.entries.push({
       type: 'challenge',
       label,

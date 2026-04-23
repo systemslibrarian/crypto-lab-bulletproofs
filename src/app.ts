@@ -43,19 +43,19 @@ export function initializeApp(container: HTMLElement): void {
     <header>
       <h1>Bulletproofs Range Proofs</h1>
       <p>Live zero-knowledge proofs over ristretto255, no trusted setup</p>
-      <button id="theme-toggle" type="button" aria-label="Switch to light mode" style="position: absolute; top: 0; right: 0; width: 2.6rem; height: 2.6rem; border-radius: 50%; z-index: 10; border: var(--border); background: var(--background-secondary); color: var(--text); cursor: pointer; font-size: 1.2rem;">🌙</button>
+      <button id="theme-toggle" type="button" aria-label="Switch to light mode" style="position: absolute; top: 0; right: 0;">🌙</button>
     </header>
     <main id="main-content" tabindex="-1">
       <section class="app-status" aria-label="Application status">
         <div id="app-status" class="info-block" role="status" aria-live="polite">Ready. Commit a value to start exploring the protocol.</div>
       </section>
       <div class="panels">
-        <div id="commitment-panel"></div>
-        <div id="transcript-panel"></div>
-        <div id="verify-panel"></div>
+        <div id="commitment-panel" aria-label="Commit a value panel"></div>
+        <div id="transcript-panel" aria-label="Transcript panel"></div>
+        <div id="verify-panel" aria-label="Verify panel"></div>
         <section id="aggregate-panel" class="utility-panel"></section>
         <section id="cheat-panel" class="utility-panel"></section>
-        <div id="chart-panel"></div>
+        <div id="chart-panel" aria-label="Proof size comparison panel"></div>
       </div>
     </main>
   `;
@@ -176,7 +176,7 @@ function generateProof(): void {
       transcriptEntries.innerHTML = entries
         .map(
           (entry) =>
-            `<li class="transcript-entry"><strong>${entry.label}</strong> (${entry.type}): ${entry.bytes.length} bytes</li>`
+            `<li class="transcript-entry"><strong>${entry.label}</strong> (${entry.type}): <span aria-label="${entry.bytes.length} bytes">${entry.bytes.length} bytes</span></li>`
         )
         .join('');
     }

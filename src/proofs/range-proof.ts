@@ -62,7 +62,7 @@ export function proveRange(
   }
 
   const v = reduceScalar(value);
-  const r = reduceScalar(blinder);
+  const blinding = reduceScalar(blinder);
 
   // Generate basis vectors
   const G_vec = generateGVec(N);
@@ -79,7 +79,7 @@ export function proveRange(
   }
 
   // a_R = a_L - 1^N
-  const a_R = a_L.map((a, i) => addScalars(a, negScalar(1n)));
+  const a_R = a_L.map((a) => addScalars(a, negScalar(1n)));
 
   // Random blinding: s_L, s_R
   const s_L = Array.from({ length: N }, () => randomScalar());
@@ -120,7 +120,7 @@ export function proveRange(
     t_0 = addScalars(t_0, mulScalars(mulScalars(a_L[i], y_pow[i]), ar));
   }
   t_0 = addScalars(t_0, mulScalars(z, v));
-  t_0 = addScalars(t_0, mulScalars(z_sq, r));
+  t_0 = addScalars(t_0, mulScalars(z_sq, blinding));
 
   // Compute t_1
   let t_1 = 0n;
@@ -173,11 +173,11 @@ export function proveRange(
     l.push(addScalars(a_L[i], mulScalars(s_L[i], x)));
   }
 
-  const r: bigint[] = [];
+  const r_vec: bigint[] = [];
   for (let i = 0; i < N; i++) {
     const ar = addScalars(a_R[i], z);
     const sr_y = mulScalars(s_R[i], y_pow[i]);
-    r.push(
+    r_vec.push(
       addScalars(
         mulScalars(y_pow[i], addScalars(ar, mulScalars(z, 1n))),
         mulScalars(sr_y, x)
@@ -188,7 +188,7 @@ export function proveRange(
   // Inner-product argument
   const P = addPoints(V, addPoints(scalarMult(z, innerProductPoints(y_pow, H_vec)), scalarMult(z_sq, innerProductPoints(Array(N).fill(1n), H_vec))));
   const u = RISTRETTO_BASEPOINT; // Placeholder
-  const ipa_proof = proveIPA(l, r, u, G_vec, H_vec, P, transcript);
+  const ipa_proof = proveIPA(l, r_vec, u, G_vec, H_vec, P, transcript);
 
   return {
     A,
