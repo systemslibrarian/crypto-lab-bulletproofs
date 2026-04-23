@@ -1,8 +1,10 @@
 /**
  * Single-value 64-bit range proof for Bulletproofs.
- * 
+ *
  * Proves that a Pedersen-committed value v lies in [0, 2^64).
- * Protocol: Bünz et al. 2018, Protocol 2
+ * Protocol: Bünz et al. 2018, Protocol 2 ("Inner Product Range Proof"),
+ * with the basis change H'_i = y^{-i} * H_i so the inner-product argument
+ * is run in basis (G, H').
  */
 
 import {
@@ -12,20 +14,22 @@ import {
   scalarMult,
   innerProductPoints,
   RISTRETTO_BASEPOINT,
+  hashToRistretto,
   type RistrettoPointValue,
 } from '../crypto/ristretto';
-import { getHGenerator, vectorCommit } from '../crypto/pedersen';
+import { getHGenerator } from '../crypto/pedersen';
 import {
   reduceScalar,
   addScalars,
   mulScalars,
   negScalar,
+  invScalar,
   randomScalar,
 } from '../crypto/scalar';
 import { Transcript } from '../crypto/transcript';
 import { proveIPA, verifyIPA, type IPAProof } from './inner-product';
 
-const N = 64; // Bit length
+const N = 64;
 
 /**
  * Range proof for a single value.
@@ -41,14 +45,44 @@ export interface RangeProof {
   ipa_proof: IPAProof;
 }
 
+/** Independent generator for the IPA inner-product term. Distinct from g, h. */
+function getU(): RistrettoPointValue {
+  return hashToRistretto('bulletproofs:u');
+}
+
+function powerVector(base: bigint, n: number): bigint[] {
+  const out: bigint[] = new Array(n);
+  let acc = 1n;
+  for (let i = 0; i < n; i++) {
+    out[i] = acc;
+    acc = mulScalars(acc, base);
+  }
+  return out;
+}
+
+function innerProduct(a: bigint[], b: bigint[]): bigint {
+  let acc = 0n;
+  for (let i = 0; i < a.length; i++) {
+    acc = addScalars(acc, mulScalars(a[i], b[i]));
+  }
+  return acc;
+}
+
 /**
- * Generate a 64-bit range proof for a committed value.
- * 
- * @param value The value to prove (must be in [0, 2^64))
- * @param blinder The Pedersen blinding factor used in Commit(value, blinder)
- * @param V The Pedersen commitment
- * @param transcript Fiat-Shamir transcript
- * @returns Range proof
+ * delta(y, z) = (z - z^2) * <1^n, y^n>  -  z^3 * <1^n, 2^n>
+ */
+function delta(z: bigint, y_pow: bigint[], two_pow: bigint[]): bigint {
+  const z2 = mulScalars(z, z);
+  const z3 = mulScalars(z2, z);
+  const sumYn = y_pow.reduce((acc, v) => addScalars(acc, v), 0n);
+  const sumTwoN = two_pow.reduce((acc, v) => addScalars(acc, v), 0n);
+  const term1 = mulScalars(addScalars(z, negScalar(z2)), sumYn);
+  const term2 = mulScalars(z3, sumTwoN);
+  return addScalars(term1, negScalar(term2));
+}
+
+/**
+ * Generate a 64-bit range proof for a committed value V = v*g + r*h.
  */
 export function proveRange(
   value: bigint,
@@ -56,172 +90,137 @@ export function proveRange(
   V: RistrettoPointValue,
   transcript: Transcript
 ): RangeProof {
-  // Verify value is in range
-  if (value < 0n || value >= (1n << 64n)) {
+  if (value < 0n || value >= 1n << 64n) {
     throw new Error('Value must be in [0, 2^64)');
   }
 
   const v = reduceScalar(value);
-  const blinding = reduceScalar(blinder);
+  const gamma = reduceScalar(blinder);
 
-  // Generate basis vectors
   const G_vec = generateGVec(N);
   const H_vec = generateHVec(N);
   const g = RISTRETTO_BASEPOINT;
   const h = getHGenerator();
 
-  // Bit decomposition: a_L[i] = bit i of v
-  const a_L: bigint[] = [];
-  let v_copy = v;
+  // Bind V to the transcript so challenges depend on the statement.
+  transcript.appendPoint('V', V);
+
+  // a_L : bit decomposition of v, a_R = a_L - 1^N
+  const a_L: bigint[] = new Array(N);
+  const a_R: bigint[] = new Array(N);
+  let tmp = v;
   for (let i = 0; i < N; i++) {
-    a_L.push(v_copy & 1n);
-    v_copy = v_copy >> 1n;
+    const bit = tmp & 1n;
+    a_L[i] = bit;
+    a_R[i] = addScalars(bit, negScalar(1n));
+    tmp >>= 1n;
   }
 
-  // a_R = a_L - 1^N
-  const a_R = a_L.map((a) => addScalars(a, negScalar(1n)));
+  // A = alpha*h + <a_L, G> + <a_R, H>
+  const alpha = randomScalar();
+  const A = addPoints(
+    addPoints(scalarMult(alpha, h), innerProductPoints(a_L, G_vec)),
+    innerProductPoints(a_R, H_vec)
+  );
 
-  // Random blinding: s_L, s_R
+  // S = rho*h + <s_L, G> + <s_R, H>, with s_L, s_R uniformly random.
   const s_L = Array.from({ length: N }, () => randomScalar());
   const s_R = Array.from({ length: N }, () => randomScalar());
+  const rho = randomScalar();
+  const S = addPoints(
+    addPoints(scalarMult(rho, h), innerProductPoints(s_L, G_vec)),
+    innerProductPoints(s_R, H_vec)
+  );
 
-  // Commitments A, S
-  const rA = randomScalar();
-  const A = vectorCommit(a_L, G_vec, a_R, H_vec, rA);
-  
-  const rS = randomScalar();
-  const S = vectorCommit(s_L, G_vec, s_R, H_vec, rS);
-
-  // Get challenges y, z from transcript
   transcript.appendPoint('A', A);
   transcript.appendPoint('S', S);
   const y = transcript.challengeScalar('y');
   const z = transcript.challengeScalar('z');
 
-  // Polynomials l(X) = a_L + s_L * X, r(X) = y^N ⊙ (a_R + z*1^N) + s_R * X ⊙ y^N
-  const y_pow: bigint[] = [];
-  let y_i = 1n;
+  const y_pow = powerVector(y, N);
+  const two_pow = powerVector(2n, N);
+  const z2 = mulScalars(z, z);
+
+  // l(X) = (a_L - z*1^N) + s_L * X
+  // r(X) = y^N ∘ (a_R + z*1^N + s_R * X) + z^2 * 2^N
+  const l0: bigint[] = new Array(N);
+  const l1: bigint[] = new Array(N);
+  const r0: bigint[] = new Array(N);
+  const r1: bigint[] = new Array(N);
   for (let i = 0; i < N; i++) {
-    y_pow.push(y_i);
-    y_i = mulScalars(y_i, y);
+    l0[i] = addScalars(a_L[i], negScalar(z));
+    l1[i] = s_L[i];
+    const aRplusZ = addScalars(a_R[i], z);
+    r0[i] = addScalars(mulScalars(y_pow[i], aRplusZ), mulScalars(z2, two_pow[i]));
+    r1[i] = mulScalars(y_pow[i], s_R[i]);
   }
 
-  const z_sq = mulScalars(z, z);
-  
-  // t(X) = <l(X), r(X)>
-  // t_0 = <a_L, y^N ⊙ (a_R + z*1^N)> + z*v + z^2*r
-  // t_1 = <a_L, s_R ⊙ y^N> + <s_L, y^N ⊙ (a_R + z*1^N)>
-  // t_2 = <s_L, s_R ⊙ y^N>
+  const t0 = innerProduct(l0, r0);
+  const t1 = addScalars(innerProduct(l0, r1), innerProduct(l1, r0));
+  const t2 = innerProduct(l1, r1);
 
-  // Compute t_0
-  let t_0 = 0n;
-  for (let i = 0; i < N; i++) {
-    const ar = addScalars(a_R[i], z);
-    t_0 = addScalars(t_0, mulScalars(mulScalars(a_L[i], y_pow[i]), ar));
-  }
-  t_0 = addScalars(t_0, mulScalars(z, v));
-  t_0 = addScalars(t_0, mulScalars(z_sq, blinding));
-
-  // Compute t_1
-  let t_1 = 0n;
-  for (let i = 0; i < N; i++) {
-    t_1 = addScalars(
-      t_1,
-      mulScalars(a_L[i], mulScalars(s_R[i], y_pow[i]))
-    );
-  }
-  for (let i = 0; i < N; i++) {
-    const ar = addScalars(a_R[i], z);
-    t_1 = addScalars(
-      t_1,
-      mulScalars(s_L[i], mulScalars(y_pow[i], ar))
-    );
-  }
-
-  // Compute t_2
-  let t_2 = 0n;
-  for (let i = 0; i < N; i++) {
-    t_2 = addScalars(t_2, mulScalars(s_L[i], mulScalars(s_R[i], y_pow[i])));
-  }
-
-  // Commitments T1, T2
   const tau1 = randomScalar();
   const tau2 = randomScalar();
-  const T1 = addPoints(scalarMult(t_1, g), scalarMult(tau1, h));
-  const T2 = addPoints(scalarMult(t_2, g), scalarMult(tau2, h));
+  const T1 = addPoints(scalarMult(t1, g), scalarMult(tau1, h));
+  const T2 = addPoints(scalarMult(t2, g), scalarMult(tau2, h));
 
-  // Get challenge x
   transcript.appendPoint('T1', T1);
   transcript.appendPoint('T2', T2);
   const x = transcript.challengeScalar('x');
-  const x_sq = mulScalars(x, x);
+  const xx = mulScalars(x, x);
 
-  // Compute l, r at X=x
-  let t_hat = t_0;
-  t_hat = addScalars(t_hat, mulScalars(t_1, x));
-  t_hat = addScalars(t_hat, mulScalars(t_2, x_sq));
-
-  let tau_x = mulScalars(tau1, x);
-  tau_x = addScalars(tau_x, mulScalars(tau2, x_sq));
-
-  let mu = mulScalars(rA, x);
-  mu = addScalars(mu, mulScalars(rS, x_sq));
-
-  // Compute l and r vectors at X=x
-  const l: bigint[] = [];
+  const l: bigint[] = new Array(N);
+  const r_vec: bigint[] = new Array(N);
   for (let i = 0; i < N; i++) {
-    l.push(addScalars(a_L[i], mulScalars(s_L[i], x)));
+    l[i] = addScalars(l0[i], mulScalars(l1[i], x));
+    r_vec[i] = addScalars(r0[i], mulScalars(r1[i], x));
   }
 
-  const r_vec: bigint[] = [];
+  const t_hat = addScalars(t0, addScalars(mulScalars(t1, x), mulScalars(t2, xx)));
+  const tau_x = addScalars(
+    addScalars(mulScalars(tau1, x), mulScalars(tau2, xx)),
+    mulScalars(z2, gamma)
+  );
+  const mu = addScalars(alpha, mulScalars(rho, x));
+
+  transcript.appendScalar('t_hat', t_hat);
+  transcript.appendScalar('tau_x', tau_x);
+  transcript.appendScalar('mu', mu);
+
+  // Run IPA in basis (G, H') with H'_i = y^{-i} * H_i.
+  const yInv = invScalar(y);
+  const yInv_pow = powerVector(yInv, N);
+  const H_prime: RistrettoPointValue[] = new Array(N);
   for (let i = 0; i < N; i++) {
-    const ar = addScalars(a_R[i], z);
-    const sr_y = mulScalars(s_R[i], y_pow[i]);
-    r_vec.push(
-      addScalars(
-        mulScalars(y_pow[i], addScalars(ar, mulScalars(z, 1n))),
-        mulScalars(sr_y, x)
-      )
-    );
+    H_prime[i] = scalarMult(yInv_pow[i], H_vec[i]);
   }
 
-  // Inner-product argument
-  const P = addPoints(V, addPoints(scalarMult(z, innerProductPoints(y_pow, H_vec)), scalarMult(z_sq, innerProductPoints(Array(N).fill(1n), H_vec))));
-  const u = RISTRETTO_BASEPOINT; // Placeholder
-  const ipa_proof = proveIPA(l, r_vec, u, G_vec, H_vec, P, transcript);
+  const u = getU();
+  // P' = <l, G> + <r, H'> + <l,r> * u
+  const Pprime = addPoints(
+    addPoints(innerProductPoints(l, G_vec), innerProductPoints(r_vec, H_prime)),
+    scalarMult(t_hat, u)
+  );
 
-  return {
-    A,
-    S,
-    T1,
-    T2,
-    tau_x,
-    mu,
-    t_hat,
-    ipa_proof,
-  };
+  const ipa_proof = proveIPA(l, r_vec, u, G_vec, H_prime, Pprime, transcript);
+
+  return { A, S, T1, T2, tau_x, mu, t_hat, ipa_proof };
 }
 
 /**
  * Verify a 64-bit range proof.
- * 
- * @param proof Range proof
- * @param V The Pedersen commitment
- * @param transcript Fiat-Shamir transcript
- * @returns true if valid, false otherwise
  */
 export function verifyRange(
   proof: RangeProof,
   V: RistrettoPointValue,
   transcript: Transcript
 ): boolean {
-  // Generate basis vectors
   const G_vec = generateGVec(N);
   const H_vec = generateHVec(N);
   const g = RISTRETTO_BASEPOINT;
   const h = getHGenerator();
 
-  // Retrieve challenges from transcript  
+  transcript.appendPoint('V', V);
   transcript.appendPoint('A', proof.A);
   transcript.appendPoint('S', proof.S);
   const y = transcript.challengeScalar('y');
@@ -230,55 +229,47 @@ export function verifyRange(
   transcript.appendPoint('T1', proof.T1);
   transcript.appendPoint('T2', proof.T2);
   const x = transcript.challengeScalar('x');
-  const x_sq = mulScalars(x, x);
+  const xx = mulScalars(x, x);
+  const z2 = mulScalars(z, z);
 
-  // Compute y powers
-  const y_pow: bigint[] = [];
-  let y_i = 1n;
-  for (let i = 0; i < N; i++) {
-    y_pow.push(y_i);
-    y_i = mulScalars(y_i, y);
-  }
+  transcript.appendScalar('t_hat', proof.t_hat);
+  transcript.appendScalar('tau_x', proof.tau_x);
+  transcript.appendScalar('mu', proof.mu);
 
-  const z_sq = mulScalars(z, z);
+  const y_pow = powerVector(y, N);
+  const two_pow = powerVector(2n, N);
 
-  // Polynomial checks: verify t_hat computation via Pedersen commitments
-  // Check: t_hat*g + tau_x*h == V + z*<y^N, H> + z^2*<1^N, H> + x*T1 + x^2*T2
-  
-  const left = addPoints(
-    scalarMult(proof.t_hat, g),
-    scalarMult(proof.tau_x, h)
+  // (1) t_hat * g + tau_x * h ?= z^2 * V + delta(y,z) * g + x * T1 + x^2 * T2
+  const lhs = addPoints(scalarMult(proof.t_hat, g), scalarMult(proof.tau_x, h));
+  const d = delta(z, y_pow, two_pow);
+  const rhs = addPoints(
+    addPoints(scalarMult(z2, V), scalarMult(d, g)),
+    addPoints(scalarMult(x, proof.T1), scalarMult(xx, proof.T2))
   );
+  if (!lhs.equals(rhs)) return false;
 
-  // Compute sum of y^N ⊙ H (Hadamard product as inner product with coefficients)
-  const z_y_commitment = scalarMult(z, innerProductPoints(y_pow, H_vec));
-
-  // Compute sum of z^2 * H_vec
-  const z_sq_commitment = scalarMult(z_sq, innerProductPoints(Array(N).fill(1n), H_vec));
-
-  // Recompute polynomial commitment check point
-  let right = V;
-  right = addPoints(right, z_y_commitment);
-  right = addPoints(right, z_sq_commitment);
-  right = addPoints(right, scalarMult(x, proof.T1));
-  right = addPoints(right, scalarMult(x_sq, proof.T2));
-
-  // Verify polynomial commitment
-  if (!left.equals(right)) {
-    return false;
+  // (2) Reconstruct P' for the IPA in basis (G, H'), H'_i = y^{-i} * H_i.
+  //   P' = A + x*S + <-z * 1^N, G> + <z*y^N + z^2*2^N, H'> - mu*h + t_hat*u
+  const yInv = invScalar(y);
+  const yInv_pow = powerVector(yInv, N);
+  const H_prime: RistrettoPointValue[] = new Array(N);
+  for (let i = 0; i < N; i++) {
+    H_prime[i] = scalarMult(yInv_pow[i], H_vec[i]);
   }
 
-  // Verify inner-product argument against computed P
-  const P = addPoints(proof.A, addPoints(scalarMult(x, proof.S), 
-    addPoints(
-      addPoints(
-        scalarMult(z, innerProductPoints(y_pow, H_vec)),
-        scalarMult(z_sq, innerProductPoints(Array(N).fill(1n), H_vec))
-      ),
-      V
-    )
-  ));
+  const negZ = negScalar(z);
+  const negZVec: bigint[] = new Array(N).fill(negZ);
+  const rCoeffs: bigint[] = new Array(N);
+  for (let i = 0; i < N; i++) {
+    rCoeffs[i] = addScalars(mulScalars(z, y_pow[i]), mulScalars(z2, two_pow[i]));
+  }
 
-  const u = RISTRETTO_BASEPOINT;
-  return verifyIPA(proof.ipa_proof, P, u, G_vec, H_vec, transcript);
+  const u = getU();
+  let Pprime = addPoints(proof.A, scalarMult(x, proof.S));
+  Pprime = addPoints(Pprime, innerProductPoints(negZVec, G_vec));
+  Pprime = addPoints(Pprime, innerProductPoints(rCoeffs, H_prime));
+  Pprime = addPoints(Pprime, scalarMult(negScalar(proof.mu), h));
+  Pprime = addPoints(Pprime, scalarMult(proof.t_hat, u));
+
+  return verifyIPA(proof.ipa_proof, Pprime, u, G_vec, H_prime, transcript);
 }

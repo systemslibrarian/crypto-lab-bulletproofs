@@ -26,10 +26,17 @@ export function hashToRistretto(label: string): RistrettoPointValue {
 }
 
 /**
- * Multiple a scalar by a point (constant-time scalar multiplication).
+ * Multiply a scalar by a point. Returns the identity for scalar = 0,
+ * because @noble/curves rejects zero scalars in `multiply` even though
+ * 0 * P = O is mathematically valid and arises naturally in Bulletproofs
+ * (bit decompositions, IPA folding, vector inner products with sparse vectors).
  */
 export function scalarMult(scalar: bigint, point: RistrettoPointValue): RistrettoPointValue {
-  return point.multiply(reduceScalar(scalar));
+  const s = reduceScalar(scalar);
+  if (s === 0n) {
+    return RistrettoPoint.ZERO;
+  }
+  return point.multiply(s);
 }
 
 /**

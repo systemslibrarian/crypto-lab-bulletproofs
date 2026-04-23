@@ -279,17 +279,48 @@ function runCheatDemo(value: bigint): void {
     return;
   }
 
-  const cheatCommitment = commit(value, randomScalar());
-  const normalized = BigInt.asUintN(64, value);
+  // Honest commitment to the *original* (out-of-range) value.
+  const blinder = randomScalar();
+  const honestCommitment = commit(value, blinder);
+
+  // The prover refuses inputs outside [0, 2^64). The classic cheat is to
+  // construct a 64-bit witness that opens the SAME commitment, which would
+  // require breaking the discrete log of g and h. Instead we demonstrate the
+  // closest a malicious prover can do: build a proof for the 64-bit
+  // truncation v mod 2^64 and check that the verifier rejects it because
+  // the commitment does not open to that witness.
+  const truncated = BigInt.asUintN(64, value);
+  const fakeCommitment = commit(truncated, blinder);
+  const proverTranscript = new Transcript('bulletproofs-demo-cheat');
+  let proof: RangeProof | null = null;
+  let proverError = '';
+  try {
+    proof = proveRange(truncated, blinder, fakeCommitment, proverTranscript);
+  } catch (e) {
+    proverError = formatError(e);
+  }
+
+  let verifierMessage = 'Verifier was not run because the prover aborted.';
+  if (proof) {
+    const verifyTranscript = new Transcript('bulletproofs-demo-cheat');
+    const acceptedAgainstHonest = verifyRange(proof, honestCommitment, verifyTranscript);
+    verifierMessage = acceptedAgainstHonest
+      ? 'Verifier UNEXPECTEDLY accepted: this should never happen.'
+      : 'Verifier rejected: the proof opens a different commitment than the one published.';
+  }
 
   cheatResult.innerHTML = `
-    <div><strong>Committed value:</strong> ${value.toString()}</div>
-    <div><strong>64-bit normalized value:</strong> ${normalized.toString()}</div>
-    <div><strong>Commitment prefix:</strong> ${cheatCommitment.toHex().slice(0, 32)}...</div>
-    <div><strong>Expected outcome:</strong> verification fails because the commitment is not an opening to a legal 64-bit witness.</div>
+    <div><strong>Attempted value:</strong> ${value.toString()}</div>
+    <div><strong>64-bit normalized value:</strong> ${truncated.toString()}</div>
+    <div><strong>Honest commitment prefix:</strong> ${honestCommitment.toHex().slice(0, 32)}...</div>
+    <div><strong>Prover status:</strong> ${proverError ? 'aborted (' + proverError + ')' : 'produced a proof for the truncated witness'}</div>
+    <div><strong>Verifier outcome:</strong> ${verifierMessage}</div>
   `;
 
-  setAppStatus(`Cheat demo loaded for value ${value.toString()}. Verification should fail for this out-of-range witness.`, 'error');
+  setAppStatus(
+    `Cheat demo for ${value.toString()}: ${proverError ? 'prover aborted' : 'verifier rejected'}.`,
+    'error'
+  );
 }
 
 function renderProofSizeChart(): void {

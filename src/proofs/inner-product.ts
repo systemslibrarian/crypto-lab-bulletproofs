@@ -241,10 +241,11 @@ export function verifyIPA(
     s.push(si);
   }
 
-  // Reconstruct P' = <s, G> + <s^-1, H> + ab * u + sum(x_j^2 * L_j + x_j^-2 * R_j)
+  // Reconstruct P' = <a*s, G> + <b*s^-1, H> + ab*u
+  // and compare against P + sum(x_j^2 * L_j + x_j^-2 * R_j).
   const aTimesS = s.map((si) => mulScalars(proof.a, si));
   let P_prime = innerProductPoints(aTimesS, G);
-  
+
   const s_inv: bigint[] = [];
   for (const si of s) {
     s_inv.push(invScalar(si));
@@ -253,14 +254,15 @@ export function verifyIPA(
   P_prime = addPoints(P_prime, innerProductPoints(bTimesSInv, H));
   P_prime = addPoints(P_prime, scalarMult(mulScalars(proof.a, proof.b), u));
 
+  let P_target = P;
   for (let j = 0; j < k; j++) {
     const x_sq = mulScalars(challenges[j], challenges[j]);
     const x_inv_sq = invScalar(x_sq);
-    P_prime = addPoints(P_prime, scalarMult(x_sq, proof.L[j]));
-    P_prime = addPoints(P_prime, scalarMult(x_inv_sq, proof.R[j]));
+    P_target = addPoints(P_target, scalarMult(x_sq, proof.L[j]));
+    P_target = addPoints(P_target, scalarMult(x_inv_sq, proof.R[j]));
   }
 
-  return P_prime.equals(P);
+  return P_prime.equals(P_target);
 }
 
 function isPowerOfTwo(n: number): boolean {

@@ -1,9 +1,11 @@
 /**
- * Scalar field arithmetic modulo ℓ (the Ristretto255 subgroup order).
+ * Scalar field arithmetic modulo ℓ (the Ristretto255 / ed25519 subgroup order).
  * ℓ = 2^252 + 27742317777884353535851937790883648493
+ *   = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed
  */
 
-const ORDER = 0x1000000000000000000000000000000014551231950b75fc4402da1732fc9bebfn;
+const ORDER =
+  0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3edn;
 
 /**
  * Reduce a bigint modulo ℓ.
@@ -69,13 +71,18 @@ export function invScalar(a: bigint): bigint {
  * Generate a random scalar using crypto.getRandomValues.
  */
 export function randomScalar(): bigint {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  let result = 0n;
-  for (let i = 0; i < 32; i++) {
-    result = (result << 8n) | BigInt(bytes[i]);
+  // Loop until we draw a non-zero scalar; probability of zero is ~2^-252,
+  // but we still need a guarantee for downstream blinding factors.
+  for (;;) {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    let result = 0n;
+    for (let i = 0; i < 32; i++) {
+      result = (result << 8n) | BigInt(bytes[i]);
+    }
+    const s = reduceScalar(result);
+    if (s !== 0n) return s;
   }
-  return reduceScalar(result);
 }
 
 /**
