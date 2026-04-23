@@ -1,8 +1,16 @@
 /**
- * Aggregated range proofs for multiple values.
- * 
- * Proves m values are in [0, 2^n) with proof size O(log(n*m)) + O(1).
- * Protocol: Bünz et al. 2018, Protocol 2 extended
+ * Batched range proofs for multiple values.
+ *
+ * NOTE: This is *not* the true aggregated Bulletproof from Bünz et al. 2018
+ * Section 4.3. A true aggregate produces a single proof of size
+ *   (2 * ceil(log2(n*m)) + 9) * 32 bytes.
+ *
+ * What this module does instead is run the single-value protocol m times,
+ * binding each round into a shared parent transcript so that a verifier
+ * cannot mix-and-match proofs across batches. The serialized size grows
+ * linearly with m. The educational value is the batched verifier flow and
+ * domain-separated transcript composition; the size-savings claim of true
+ * aggregation is reported separately by the UI as a theoretical comparison.
  */
 
 import type { RistrettoPointValue } from '../crypto/ristretto';
@@ -10,7 +18,7 @@ import { Transcript } from '../crypto/transcript';
 import { proveRange, verifyRange, type RangeProof } from './range-proof';
 
 /**
- * Aggregated range proof.
+ * Batched range proof: m independent single-value proofs bound to one transcript.
  */
 export interface AggregateRangeProof {
   valueCount: number;
@@ -18,13 +26,13 @@ export interface AggregateRangeProof {
 }
 
 /**
- * Prove multiple values in range [0, 2^64) in a single proof.
- * 
+ * Prove multiple values in range [0, 2^64) as a batched (not aggregated) proof.
+ *
  * @param values Values to prove
  * @param blinders Blinding factors for each commitment
  * @param commitments Pedersen commitments
  * @param transcript Fiat-Shamir transcript
- * @returns Aggregated range proof
+ * @returns Batched range proof (m single-value proofs)
  */
 export function proveAggregateRange(
   values: bigint[],

@@ -43,6 +43,8 @@ export interface RangeProof {
   mu: bigint;
   t_hat: bigint;
   ipa_proof: IPAProof;
+  /** Fiat-Shamir challenges, kept for UI introspection only. Not part of the proof. */
+  challenges?: { y: bigint; z: bigint; x: bigint };
 }
 
 /** Independent generator for the IPA inner-product term. Distinct from g, h. */
@@ -204,7 +206,7 @@ export function proveRange(
 
   const ipa_proof = proveIPA(l, r_vec, u, G_vec, H_prime, Pprime, transcript);
 
-  return { A, S, T1, T2, tau_x, mu, t_hat, ipa_proof };
+  return { A, S, T1, T2, tau_x, mu, t_hat, ipa_proof, challenges: { y, z, x } };
 }
 
 /**

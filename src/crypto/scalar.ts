@@ -4,6 +4,8 @@
  *   = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed
  */
 
+import { sha512 } from '@noble/hashes/sha512';
+
 const ORDER =
   0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3edn;
 
@@ -69,13 +71,21 @@ export function invScalar(a: bigint): bigint {
 
 /**
  * Generate a random scalar using crypto.getRandomValues.
+ *
+ * If a deterministic seed has been installed via `setDeterministicRng`,
+ * draws are pulled from that PRNG instead. This is for reproducible demos
+ * and tests only; production use must keep the default crypto-RNG path.
  */
 export function randomScalar(): bigint {
   // Loop until we draw a non-zero scalar; probability of zero is ~2^-252,
   // but we still need a guarantee for downstream blinding factors.
   for (;;) {
     const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
+    if (deterministicRng) {
+      deterministicRng(bytes);
+    } else {
+      crypto.getRandomValues(bytes);
+    }
     let result = 0n;
     for (let i = 0; i < 32; i++) {
       result = (result << 8n) | BigInt(bytes[i]);
@@ -83,6 +93,48 @@ export function randomScalar(): bigint {
     const s = reduceScalar(result);
     if (s !== 0n) return s;
   }
+}
+
+let deterministicRng: ((out: Uint8Array) => void) | null = null;
+
+/**
+ * Install a deterministic PRNG seeded from `seed`. Subsequent calls to
+ * `randomScalar` will draw from this stream until `clearDeterministicRng`
+ * is called. Uses a SHA-512-based counter construction.
+ */
+export function setDeterministicRng(seed: string): void {
+  let counter = 0;
+  const seedBytes = new TextEncoder().encode(seed);
+  let pool = sha512(seedBytes);
+  let poolOffset = 0;
+  deterministicRng = (out: Uint8Array) => {
+    let written = 0;
+    while (written < out.length) {
+      if (poolOffset >= pool.length) {
+        counter++;
+        const counterBytes = new Uint8Array(8);
+        let c = counter;
+        for (let i = 7; i >= 0; i--) {
+          counterBytes[i] = c & 0xff;
+          c >>>= 8;
+        }
+        const next = new Uint8Array(seedBytes.length + counterBytes.length);
+        next.set(seedBytes, 0);
+        next.set(counterBytes, seedBytes.length);
+        pool = sha512(next);
+        poolOffset = 0;
+      }
+      const take = Math.min(out.length - written, pool.length - poolOffset);
+      out.set(pool.subarray(poolOffset, poolOffset + take), written);
+      poolOffset += take;
+      written += take;
+    }
+  };
+}
+
+/** Restore the default crypto-RNG behaviour. */
+export function clearDeterministicRng(): void {
+  deterministicRng = null;
 }
 
 /**
