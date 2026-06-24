@@ -56,29 +56,73 @@ const AGGREGATE_BITS = 64;
  */
 export function initializeApp(container: HTMLElement): void {
   container.innerHTML = `
-    <header>
-      <h1>Bulletproofs Range Proofs</h1>
-      <p>Live zero-knowledge proofs over ristretto255, no trusted setup</p>
-      <button id="theme-toggle" type="button" aria-label="Switch to light mode" style="position: absolute; top: 0; right: 0;">🌙</button>
-    </header>
-    <main id="main-content" tabindex="-1">
-      <section class="app-status" aria-label="Application status">
-        <div id="app-status" class="info-block" role="status" aria-live="polite">Ready. Commit a value to start exploring the protocol.</div>
-      </section>
-      <div class="panels">
-        <div id="commitment-panel" aria-label="Commit a value panel"></div>
-        <div id="transcript-panel" aria-label="Transcript panel"></div>
-        <div id="verify-panel" aria-label="Verify panel"></div>
-        <section id="aggregate-panel" class="utility-panel"></section>
-        <section id="cheat-panel" class="utility-panel"></section>
-        <div id="chart-panel" aria-label="Proof size comparison panel"></div>
-        <section id="introspection-panel" class="utility-panel" aria-label="Proof introspection panel"></section>
-        <section id="equations-panel" class="utility-panel" aria-label="Verifier equations panel"></section>
-        <section id="portable-panel" class="utility-panel" aria-label="Export and import proof panel"></section>
-        <section id="tamper-panel" class="utility-panel" aria-label="Manual tampering panel"></section>
-        <section id="seed-panel" class="utility-panel" aria-label="Deterministic seed panel"></section>
-        <section id="benchmark-panel" class="utility-panel" aria-label="Benchmark panel"></section>
+    <section class="hero">
+      <div class="hero-inner">
+        <span class="hero-eyebrow">Zero-knowledge proof · ristretto255</span>
+        <h1>Bulletproofs Range Proofs</h1>
+        <p class="hero-sub">
+          Prove that a committed secret lies in <code>[0, 2⁶⁴)</code> while revealing nothing
+          else about it. Short proofs, no trusted setup &mdash; generated and verified live in
+          your browser.
+        </p>
+        <ul class="hero-chips" aria-label="Key properties">
+          <li>≈ 672-byte proof</li>
+          <li>log-size in the range</li>
+          <li>no trusted setup</li>
+          <li>Fiat–Shamir, ROM</li>
+        </ul>
       </div>
+    </section>
+    <main id="main-content" tabindex="-1">
+      <div id="app-status" class="app-status-box" role="status" aria-live="polite">Ready. Commit a value to start exploring the protocol.</div>
+
+      <section class="journey" aria-labelledby="sec-flow-title">
+        <div class="section-head">
+          <h2 id="sec-flow-title">The core flow</h2>
+          <p>Commit to a secret value, prove it is in range, then verify the proof two independent ways.</p>
+        </div>
+        <div class="panels">
+          <div id="commitment-panel" class="step" data-step="1" aria-label="Commit a value panel"></div>
+          <div id="verify-panel" class="step" data-step="2" aria-label="Verify panel"></div>
+        </div>
+      </section>
+
+      <section class="journey" aria-labelledby="sec-inspect-title">
+        <div class="section-head">
+          <h2 id="sec-inspect-title">Look inside the proof</h2>
+          <p>Every challenge is derived from the transcript, and every byte is accounted for. Inspect both.</p>
+        </div>
+        <div class="panels">
+          <div id="transcript-panel" aria-label="Transcript panel"></div>
+          <section id="introspection-panel" class="utility-panel" aria-label="Proof introspection panel"></section>
+          <section id="equations-panel" class="utility-panel" aria-label="Verifier equations panel"></section>
+        </div>
+      </section>
+
+      <section class="journey" aria-labelledby="sec-attack-title">
+        <div class="section-head">
+          <h2 id="sec-attack-title">Try to break it</h2>
+          <p>Soundness means cheating fails. Push an out-of-range value, or tamper with a finished proof.</p>
+        </div>
+        <div class="panels">
+          <section id="cheat-panel" class="utility-panel" aria-label="Cheat attempt panel"></section>
+          <section id="tamper-panel" class="utility-panel" aria-label="Manual tampering panel"></section>
+        </div>
+      </section>
+
+      <section class="journey" aria-labelledby="sec-advanced-title">
+        <div class="section-head">
+          <h2 id="sec-advanced-title">Going further</h2>
+          <p>Aggregation, byte-for-byte portability, deterministic reproduction, and live timings.</p>
+        </div>
+        <div class="panels">
+          <section id="aggregate-panel" class="utility-panel" aria-label="Aggregation panel"></section>
+          <div id="chart-panel" aria-label="Proof size comparison panel"></div>
+          <section id="portable-panel" class="utility-panel" aria-label="Export and import proof panel"></section>
+          <section id="seed-panel" class="utility-panel" aria-label="Deterministic seed panel"></section>
+          <section id="benchmark-panel" class="utility-panel" aria-label="Benchmark panel"></section>
+        </div>
+      </section>
     </main>
     <footer class="scripture-footer" aria-label="Scope notice">
       <p><strong>Educational demo only.</strong> This is a from-scratch TypeScript implementation of Bulletproofs intended for teaching. It has not been audited and must not be used to protect real assets.</p>

@@ -92,7 +92,6 @@ export function verifyTrueAggregateBatched(
   transcript.appendPoint('T2', proof.T2);
   const x = transcript.challengeScalar('x');
   const xx = mulScalars(x, x);
-  const z2 = mulScalars(z, z);
 
   transcript.appendScalar('t_hat', proof.t_hat);
   transcript.appendScalar('tau_x', proof.tau_x);

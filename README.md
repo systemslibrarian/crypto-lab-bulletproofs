@@ -38,8 +38,8 @@ git clone https://github.com/systemslibrarian/crypto-lab-bulletproofs
 cd crypto-lab-bulletproofs
 npm install
 npm run dev      # local dev server
-npm test         # boundary + serialization + true-aggregate + batch-verifier tests
-npm run build    # production build
+npm test         # crypto suite + serialization + aggregate + batch-verifier + headless UI smoke test
+npm run build    # production build (type-checks, then bundles)
 ```
 
 CI runs on every push: see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
