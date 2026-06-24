@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist",
-    "test": "tsx scripts/test-suite.mjs && tsx scripts/test-boundaries.mjs && tsx scripts/test-serialize.mjs && tsx scripts/test-true-aggregate.mjs && tsx scripts/test-batch-verify.mjs && tsx scripts/test-extras.mjs && tsx scripts/test-ipa.mjs && tsx scripts/test-proof.mjs && tsx scripts/smoke-ui.mjs"
+    "test": "tsx scripts/test-suite.mjs && tsx scripts/test-boundaries.mjs && tsx scripts/test-serialize.mjs && tsx scripts/test-true-aggregate.mjs && tsx scripts/test-batch-verify.mjs && tsx scripts/test-extras.mjs && tsx scripts/test-ipa.mjs && tsx scripts/test-proof.mjs && tsx scripts/smoke-ui.mjs && tsx scripts/test-a11y.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

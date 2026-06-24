@@ -6,10 +6,23 @@ import { createCommitmentCard } from './ui/commitment-card';
 import { createTranscriptView } from './ui/transcript-view';
 import { createProofSizeChart } from './ui/proof-size-chart';
 import { createVerifyPanel } from './ui/verify-panel';
-import { commit } from './crypto/pedersen';
-import { randomScalar, setDeterministicRng, clearDeterministicRng, addScalars } from './crypto/scalar';
+import { renderBitGrid } from './ui/bit-grid';
+import { identiconSvg } from './ui/identicon';
+import { renderFolding } from './ui/folding-view';
+import { renderStepper, type JourneyState } from './ui/stepper';
+import { gloss } from './ui/glossary';
+import { attachCopyButtons } from './ui/clipboard';
+import { commit, getHGenerator } from './crypto/pedersen';
+import {
+  randomScalar,
+  setDeterministicRng,
+  clearDeterministicRng,
+  addScalars,
+  mulScalars,
+  negScalar,
+} from './crypto/scalar';
 import type { RistrettoPointValue } from './crypto/ristretto';
-import { bytesToPoint } from './crypto/ristretto';
+import { bytesToPoint, scalarMult, addPoints, RISTRETTO_BASEPOINT } from './crypto/ristretto';
 import { proveRange, verifyRange } from './proofs/range-proof';
 import { verifyRangeBatched } from './proofs/batch-verify';
 import {
@@ -38,14 +51,21 @@ export interface AppState {
   currentCommitment: RistrettoPointValue | null;
   currentProof: RangeProof | null;
   transcript: Transcript | null;
+  proved: boolean;
+  verified: boolean;
+  /** Wall-clock prover time of the current proof, retained for re-renders. */
+  lastProverMs: number | null;
 }
 
 let appState: AppState = {
-  currentValue: 100n,
+  currentValue: 1337n,
   currentBlinder: randomScalar(),
   currentCommitment: null,
   currentProof: null,
   transcript: null,
+  proved: false,
+  verified: false,
+  lastProverMs: null,
 };
 
 const MAX_AGGREGATE_VALUES = 16;
@@ -74,6 +94,7 @@ export function initializeApp(container: HTMLElement): void {
       </div>
     </section>
     <main id="main-content" tabindex="-1">
+      <nav id="journey-stepper" class="journey-stepper" aria-label="Demo progress"></nav>
       <div id="app-status" class="app-status-box" role="status" aria-live="polite">Ready. Commit a value to start exploring the protocol.</div>
 
       <section class="journey" aria-labelledby="sec-flow-title">
@@ -90,23 +111,25 @@ export function initializeApp(container: HTMLElement): void {
       <section class="journey" aria-labelledby="sec-inspect-title">
         <div class="section-head">
           <h2 id="sec-inspect-title">Look inside the proof</h2>
-          <p>Every challenge is derived from the transcript, and every byte is accounted for. Inspect both.</p>
+          <p>Every challenge is derived from the ${gloss('transcript')}, and every byte is accounted for. Inspect both.</p>
         </div>
         <div class="panels">
           <div id="transcript-panel" aria-label="Transcript panel"></div>
           <section id="introspection-panel" class="utility-panel" aria-label="Proof introspection panel"></section>
           <section id="equations-panel" class="utility-panel" aria-label="Verifier equations panel"></section>
+          <section id="folding-panel" class="utility-panel" aria-label="Inner-product folding panel"></section>
         </div>
       </section>
 
       <section class="journey" aria-labelledby="sec-attack-title">
         <div class="section-head">
           <h2 id="sec-attack-title">Try to break it</h2>
-          <p>Soundness means cheating fails. Push an out-of-range value, or tamper with a finished proof.</p>
+          <p>Soundness means cheating fails. Push an out-of-range value, tamper with a finished proof, or replay it against a different commitment.</p>
         </div>
         <div class="panels">
           <section id="cheat-panel" class="utility-panel" aria-label="Cheat attempt panel"></section>
           <section id="tamper-panel" class="utility-panel" aria-label="Manual tampering panel"></section>
+          <section id="replay-panel" class="utility-panel" aria-label="Replay attack panel"></section>
         </div>
       </section>
 
@@ -124,9 +147,9 @@ export function initializeApp(container: HTMLElement): void {
         </div>
       </section>
     </main>
-    <footer class="scripture-footer" aria-label="Scope notice">
+    <div class="scripture-footer" role="note" aria-label="Scope notice">
       <p><strong>Educational demo only.</strong> This is a from-scratch TypeScript implementation of Bulletproofs intended for teaching. It has not been audited and must not be used to protect real assets.</p>
-    </footer>
+    </div>
   `;
 
   // Mount UI components
@@ -147,17 +170,22 @@ export function initializeApp(container: HTMLElement): void {
   if (introspectionPanel) introspectionPanel.innerHTML = createIntrospectionPanelMarkup();
   const equationsPanel = document.getElementById('equations-panel');
   if (equationsPanel) equationsPanel.innerHTML = createEquationsPanelMarkup();
+  const foldingPanel = document.getElementById('folding-panel');
+  if (foldingPanel) foldingPanel.innerHTML = createFoldingPanelMarkup();
   const portablePanel = document.getElementById('portable-panel');
   if (portablePanel) portablePanel.innerHTML = createPortablePanelMarkup();
   const tamperPanel = document.getElementById('tamper-panel');
   if (tamperPanel) tamperPanel.innerHTML = createTamperPanelMarkup();
+  const replayPanel = document.getElementById('replay-panel');
+  if (replayPanel) replayPanel.innerHTML = createReplayPanelMarkup();
   const seedPanel = document.getElementById('seed-panel');
   if (seedPanel) seedPanel.innerHTML = createSeedPanelMarkup();
   const benchmarkPanel = document.getElementById('benchmark-panel');
   if (benchmarkPanel) benchmarkPanel.innerHTML = createBenchmarkPanelMarkup();
 
-  // Setup initial commitment
+  // Setup initial commitment + progress stepper.
   updateCommitment();
+  updateStepper();
 
   // Wire up events
   const valueSlider = document.getElementById('value-slider') as HTMLInputElement;
@@ -167,6 +195,17 @@ export function initializeApp(container: HTMLElement): void {
       updateCommitment();
     });
   }
+
+  // Quick-value presets jump the slider to interesting bit patterns.
+  document.querySelectorAll<HTMLButtonElement>('.preset-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const preset = chip.getAttribute('data-preset');
+      if (!preset || !valueSlider) return;
+      valueSlider.value = preset;
+      appState.currentValue = BigInt(preset);
+      updateCommitment();
+    });
+  });
 
   // Wire up prove button
   const proveButton = document.getElementById('prove-button');
@@ -221,6 +260,9 @@ export function initializeApp(container: HTMLElement): void {
   const tamperButton = document.getElementById('tamper-run');
   if (tamperButton) tamperButton.addEventListener('click', () => runTamperDemo());
 
+  const replayButton = document.getElementById('replay-run');
+  if (replayButton) replayButton.addEventListener('click', () => runReplayDemo());
+
   const seedApply = document.getElementById('seed-apply');
   if (seedApply) seedApply.addEventListener('click', () => applySeed());
   const seedClear = document.getElementById('seed-clear');
@@ -231,6 +273,70 @@ export function initializeApp(container: HTMLElement): void {
 
   renderAggregateEstimate();
   renderProofSizeChart();
+  attachCopyButtons(container);
+
+  // WCAG 1.4.13: focus-triggered glossary tooltips must be dismissable.
+  container.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const active = document.activeElement as HTMLElement | null;
+    if (active && active.classList.contains('gloss')) active.blur();
+  });
+
+  // Anchor each glossary popover toward the viewport so it can't clip off-screen.
+  const anchorGloss = (e: Event) => {
+    const target = e.target as HTMLElement | null;
+    const g = target?.closest?.('.gloss') as HTMLElement | null;
+    if (g) positionGloss(g);
+  };
+  container.addEventListener('pointerover', anchorGloss);
+  container.addEventListener('focusin', anchorGloss);
+}
+
+/** Pick a left/center/right anchor for a glossary popover based on its position. */
+function positionGloss(el: HTMLElement): void {
+  const pop = el.querySelector('.gloss-pop') as HTMLElement | null;
+  if (!pop) return;
+  el.classList.remove('gloss-left', 'gloss-right');
+  const rect = el.getBoundingClientRect();
+  const vw = window.innerWidth || 0;
+  if (!vw) return;
+  const center = rect.left + rect.width / 2;
+  const popW = pop.offsetWidth || 288;
+  if (center - popW / 2 < 8) el.classList.add('gloss-left');
+  else if (center + popW / 2 > vw - 8) el.classList.add('gloss-right');
+}
+
+/** Re-render the journey progress stepper from current app state. */
+function updateStepper(): void {
+  const host = document.getElementById('journey-stepper');
+  if (!host) return;
+  const state: JourneyState = {
+    committed: appState.currentCommitment !== null,
+    proved: appState.proved,
+    verified: appState.verified,
+  };
+  host.innerHTML = renderStepper(state);
+}
+
+/** Toggle a button into a disabled "busy" state with temporary label text. */
+function setBusy(id: string, busy: boolean, busyLabel?: string): void {
+  const btn = document.getElementById(id) as HTMLButtonElement | null;
+  if (!btn) return;
+  if (busy) {
+    if (!btn.dataset.idleLabel) btn.dataset.idleLabel = btn.textContent ?? '';
+    btn.disabled = true;
+    btn.classList.add('is-busy');
+    if (busyLabel) btn.textContent = busyLabel;
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('is-busy');
+    if (btn.dataset.idleLabel) btn.textContent = btn.dataset.idleLabel;
+  }
+}
+
+/** Format an integer with thousands separators. */
+function fmt(n: number): string {
+  return n.toLocaleString('en-US');
 }
 
 /**
@@ -240,20 +346,73 @@ function updateCommitment(): void {
   appState.currentBlinder = randomScalar();
   appState.currentCommitment = commit(appState.currentValue, appState.currentBlinder);
 
+  // A new commitment invalidates any prior proof; reset the journey.
+  appState.currentProof = null;
+  appState.transcript = null;
+  appState.proved = false;
+  appState.verified = false;
+  appState.lastProverMs = null;
+
   const valueDisplay = document.getElementById('value-display');
   if (valueDisplay) {
-    valueDisplay.textContent = appState.currentValue.toString();
+    valueDisplay.textContent = fmt(Number(appState.currentValue));
+  }
+
+  const fullHex = appState.currentCommitment.toHex();
+
+  const identicon = document.getElementById('commitment-identicon');
+  if (identicon) {
+    identicon.innerHTML = identiconSvg(appState.currentCommitment.toBytes());
   }
 
   const commitmentOutput = document.getElementById('commitment-output');
   if (commitmentOutput) {
     commitmentOutput.innerHTML = `
-      <div><strong>Committed value:</strong> ${appState.currentValue.toString()}</div>
-      <div><strong>Compressed point:</strong> ${appState.currentCommitment.toHex().substring(0, 32)}...</div>
+      <div><strong>Committed value:</strong> ${fmt(Number(appState.currentValue))}</div>
+      <div class="hex-row">
+        <span><strong>Commitment V:</strong> <code>${fullHex.slice(0, 24)}…</code></span>
+        <button type="button" class="mini-copy" data-copy-text="${fullHex}" aria-label="Copy commitment hex">Copy</button>
+      </div>
     `;
+    // Keep the copy text fresh and (re)wire the freshly rendered button.
+    attachCopyButtons(commitmentOutput);
   }
 
-  setAppStatus(`Committed value ${appState.currentValue.toString()} with a fresh random blinding factor.`);
+  const bitSlot = document.getElementById('bit-grid-slot');
+  if (bitSlot) {
+    bitSlot.innerHTML = renderBitGrid(appState.currentValue);
+  }
+
+  resetProofUI();
+  updateStepper();
+
+  setAppStatus(`Committed value ${fmt(Number(appState.currentValue))} with a fresh random blinding factor.`);
+}
+
+/** Clear downstream proof-dependent panels when the commitment changes. */
+function resetProofUI(): void {
+  const introspection = document.getElementById('introspection-content');
+  if (introspection) introspection.innerHTML = 'No proof has been generated yet.';
+  const folding = document.getElementById('folding-content');
+  if (folding) folding.innerHTML = 'Generate a proof to watch the inner-product vectors fold from 64 down to 1.';
+  const evalBox = document.getElementById('equation-eval');
+  if (evalBox) evalBox.innerHTML = 'Generate a proof to evaluate the equation on live values.';
+  const verifyResult = document.getElementById('verify-result');
+  if (verifyResult) {
+    verifyResult.className = 'verify-result';
+    verifyResult.textContent = 'No verification has been run yet.';
+  }
+  // The transcript view belongs to the previous proof — clear it too.
+  const transcriptEntries = document.getElementById('transcript-entries');
+  if (transcriptEntries) transcriptEntries.innerHTML = '';
+  // The exported snapshot is now stale; clear it so a later "verify pasted
+  // proof" can't silently re-check a proof for the old value.
+  const exportOutput = document.getElementById('export-output') as HTMLTextAreaElement | null;
+  if (exportOutput) exportOutput.value = '';
+  const commitmentHex = document.getElementById('commitment-hex') as HTMLTextAreaElement | null;
+  if (commitmentHex) commitmentHex.value = '';
+  const portableResult = document.getElementById('portable-result');
+  if (portableResult) portableResult.textContent = 'No proof exported or imported yet.';
 }
 
 /**
@@ -278,6 +437,9 @@ function generateProof(): void {
 
     appState.currentProof = proof;
     appState.transcript = transcript;
+    appState.proved = true;
+    appState.verified = false;
+    appState.lastProverMs = proverMs;
 
     // Update transcript view
     const transcriptEntries = document.getElementById('transcript-entries');
@@ -292,6 +454,9 @@ function generateProof(): void {
     }
 
     renderIntrospection(proof, proverMs, null);
+    renderFoldingView(proof);
+    renderEquationEval(proof);
+    updateStepper();
 
     const proofBytes = rangeProofByteLength(proof);
     setAppStatus(
@@ -322,12 +487,14 @@ function verifyProof(batched: boolean): void {
     const verifierMs = performance.now() - t0;
     const label = batched ? 'single-MSM verifier' : 'reference verifier';
 
-    renderIntrospection(appState.currentProof, null, verifierMs);
+    renderIntrospection(appState.currentProof, appState.lastProverMs, verifierMs);
 
     const verifyResult = document.getElementById('verify-result');
     if (verifyResult) {
       if (isValid) {
-        verifyResult.className = 'verify-result success';
+        appState.verified = true;
+        updateStepper();
+        verifyResult.className = 'verify-result success pulse';
         verifyResult.innerHTML = `<strong>✓ ${label} accepted</strong> in ${verifierMs.toFixed(1)} ms.`;
         setAppStatus(`${label} accepted the current proof in ${verifierMs.toFixed(1)} ms.`, 'success');
       } else {
@@ -563,8 +730,9 @@ function renderIntrospection(
   const verifierLine =
     verifierMs !== null ? `<div><strong>Verifier time:</strong> ${verifierMs.toFixed(1)} ms</div>` : '';
 
-  const sample = serializeRangeProof(proof).slice(0, 16);
-  const sampleHex = Array.from(sample, (b) => b.toString(16).padStart(2, '0')).join('');
+  const fullBytes = serializeRangeProof(proof);
+  const fullHex = bytesToHex(fullBytes);
+  const sampleHex = fullHex.slice(0, 32);
 
   target.innerHTML = `
     <div><strong>Serialized proof size:</strong> ${totalBytes} B (${ipaRounds} IPA rounds for n=64)</div>
@@ -574,8 +742,9 @@ function renderIntrospection(
     ${challengeRows}
     ${proverLine}
     ${verifierLine}
-    <div><strong>First 16 bytes of serialized proof:</strong> <code>${sampleHex}</code></div>
+    <div class="hex-row"><span><strong>First 16 bytes:</strong> <code>${sampleHex}</code></span><button type="button" class="mini-copy" data-copy-text="${fullHex}" aria-label="Copy full proof hex">Copy all</button></div>
   `;
+  attachCopyButtons(target);
 }
 
 function createEquationsPanelMarkup(): string {
@@ -593,9 +762,128 @@ function createEquationsPanelMarkup(): string {
       <div class="panel-copy" style="margin-top: 0.5rem;">The IPA then proves knowledge of l, r with ⟨l,r⟩ = t̂ in O(log n) rounds, giving the log-size proof.</div>
     </div>
     <div class="info-block" style="margin-top: 0.75rem;">
-      <div><strong>Why cheating fails:</strong> z, y, x are derived from the transcript via Fiat-Shamir, so a malicious prover cannot pick them. Any tampered field changes the reconstructed P' or breaks equation (1), and the verifier rejects.</div>
+      <div><strong>Why cheating fails:</strong> z, y, x are derived from the ${gloss('transcript')} via ${gloss('Fiat–Shamir')}, so a malicious prover cannot pick them. Any tampered field changes the reconstructed P' or breaks equation (1), and the verifier rejects.</div>
     </div>
+    <div style="margin-top: 0.75rem;"><strong>Live evaluation of equation (1):</strong></div>
+    <div id="equation-eval" class="info-block" role="status" aria-live="polite" style="margin-top: 0.5rem;">Generate a proof to evaluate the equation on live values.</div>
   `;
+}
+
+function createFoldingPanelMarkup(): string {
+  return `
+    <h3>Inner-product folding</h3>
+    <p class="panel-copy">The ${gloss('inner-product argument')} is where the proof goes logarithmic: the two 64-length vectors halve each round until only two scalars remain.</p>
+    <div id="folding-content" class="info-block" role="status" aria-live="polite">Generate a proof to watch the inner-product vectors fold from 64 down to 1.</div>
+  `;
+}
+
+function renderFoldingView(proof: RangeProof): void {
+  const target = document.getElementById('folding-content');
+  if (!target) return;
+  target.innerHTML = renderFolding(proof.ipa_proof);
+}
+
+/** Local power-vector and δ(y,z), mirroring range-proof.ts, for live display. */
+function powerVec(base: bigint, n: number): bigint[] {
+  const out: bigint[] = new Array(n);
+  let acc = 1n;
+  for (let i = 0; i < n; i++) {
+    out[i] = acc;
+    acc = mulScalars(acc, base);
+  }
+  return out;
+}
+
+function deltaYZ(z: bigint, yPow: bigint[], twoPow: bigint[]): bigint {
+  const z2 = mulScalars(z, z);
+  const z3 = mulScalars(z2, z);
+  const sumYn = yPow.reduce((a, v) => addScalars(a, v), 0n);
+  const sumTwoN = twoPow.reduce((a, v) => addScalars(a, v), 0n);
+  const term1 = mulScalars(addScalars(z, negScalar(z2)), sumYn);
+  const term2 = mulScalars(z3, sumTwoN);
+  return addScalars(term1, negScalar(term2));
+}
+
+/**
+ * Recompute verifier equation (1) on the live proof and commitment and show
+ * both sides plus the match result. This uses only public proof fields,
+ * the commitment V, and the Fiat–Shamir challenges — exactly what a verifier has.
+ *
+ *   t̂·g + τₓ·h  ?=  z²·V + δ(y,z)·g + x·T₁ + x²·T₂
+ */
+function renderEquationEval(proof: RangeProof): void {
+  const target = document.getElementById('equation-eval');
+  if (!target) return;
+  if (!proof.challenges || !appState.currentCommitment) {
+    target.innerHTML = 'Equation evaluation unavailable for this proof.';
+    return;
+  }
+
+  const { y, z, x } = proof.challenges;
+  const V = appState.currentCommitment;
+  const g = RISTRETTO_BASEPOINT;
+  const h = getHGenerator();
+  const yPow = powerVec(y, 64);
+  const twoPow = powerVec(2n, 64);
+  const z2 = mulScalars(z, z);
+  const xx = mulScalars(x, x);
+  const d = deltaYZ(z, yPow, twoPow);
+
+  const lhs = addPoints(scalarMult(proof.t_hat, g), scalarMult(proof.tau_x, h));
+  const rhs = addPoints(
+    addPoints(scalarMult(z2, V), scalarMult(d, g)),
+    addPoints(scalarMult(x, proof.T1), scalarMult(xx, proof.T2))
+  );
+  const match = lhs.equals(rhs);
+
+  target.innerHTML = `
+    <div>&nbsp;&nbsp;LHS = t̂·g + τₓ·h = <code>${lhs.toHex().slice(0, 24)}…</code></div>
+    <div>&nbsp;&nbsp;RHS = z²·V + δ(y,z)·g + x·T₁ + x²·T₂ = <code>${rhs.toHex().slice(0, 24)}…</code></div>
+    <div>&nbsp;&nbsp;δ(y,z) = <code>${shortHex(d)}</code></div>
+    <div class="eval-verdict ${match ? 'ok' : 'bad'}">${match ? '✓ LHS = RHS — equation (1) holds on the live points.' : '✗ LHS ≠ RHS — the equation fails.'}</div>
+  `;
+}
+
+function createReplayPanelMarkup(): string {
+  return `
+    <h3>Replay attack</h3>
+    <p class="panel-copy">A proof is bound to its commitment. Take the current valid proof and verify it against a <em>different</em>, freshly committed value &mdash; it must be rejected. Generate a proof first.</p>
+    <button id="replay-run" type="button">Replay against a new commitment</button>
+    <div id="replay-result" class="info-block" role="status" aria-live="polite" style="margin-top: 0.5rem;">No replay attempted yet.</div>
+  `;
+}
+
+function runReplayDemo(): void {
+  const result = document.getElementById('replay-result');
+  if (!result) return;
+  if (!appState.currentProof) {
+    result.innerHTML = '<div><strong>No proof yet.</strong> Click <em>Generate Range Proof</em> first.</div>';
+    return;
+  }
+
+  // A fresh, unrelated commitment to a different value + blinder.
+  const otherValue = (appState.currentValue + 4242n) % (1n << 24n);
+  const otherBlinder = randomScalar();
+  const otherCommitment = commit(otherValue, otherBlinder);
+
+  let accepted = true;
+  let err = '';
+  try {
+    accepted = verifyRange(appState.currentProof, otherCommitment, new Transcript('bulletproofs-demo'));
+  } catch (e) {
+    accepted = false;
+    err = formatError(e);
+  }
+
+  result.innerHTML = `
+    <div><strong>Original proof:</strong> the one you just generated</div>
+    <div><strong>Replayed against:</strong> a fresh commitment to ${fmt(Number(otherValue))} (<code>${otherCommitment.toHex().slice(0, 16)}…</code>)</div>
+    <div class="eval-verdict ${accepted ? 'bad' : 'ok'}">${accepted ? '✗ UNEXPECTEDLY accepted — this must never happen.' : '✓ Rejected — the proof only validates its own commitment.'} ${err ? `(${err})` : ''}</div>
+  `;
+  setAppStatus(
+    accepted ? 'Replay attack unexpectedly accepted.' : 'Replay attack rejected: proof is bound to its commitment.',
+    accepted ? 'error' : 'success'
+  );
 }
 
 function createPortablePanelMarkup(): string {
@@ -606,7 +894,7 @@ function createPortablePanelMarkup(): string {
       <button id="export-proof" type="button">Export current proof</button>
       <button id="import-proof" type="button">Verify pasted proof</button>
     </div>
-    <label for="export-output" class="panel-copy" style="display:block; margin-top:0.75rem;"><strong>Commitment (hex, 32 B):</strong></label>
+    <label for="commitment-hex" class="panel-copy" style="display:block; margin-top:0.75rem;"><strong>Commitment (hex, 32 B):</strong></label>
     <textarea id="commitment-hex" rows="2" style="width:100%; font-family:monospace; font-size:0.8rem;" placeholder="paste commitment hex"></textarea>
     <label for="export-output" class="panel-copy" style="display:block; margin-top:0.5rem;"><strong>Proof (hex, 672 B):</strong></label>
     <textarea id="export-output" rows="6" style="width:100%; font-family:monospace; font-size:0.8rem;" placeholder="paste proof hex"></textarea>
@@ -733,10 +1021,13 @@ function runTamperDemo(): void {
   const original = appState.currentProof;
   const V = appState.currentCommitment;
   const tampered: RangeProof = { ...original, t_hat: addScalars(original.t_hat, 1n) };
+  // Must match the domain the live proof was generated with (generateProof),
+  // otherwise the verifier would reject for the wrong reason (mismatched
+  // challenges) rather than because of the tamper.
   let refOk = true, msmOk = true, refErr = '', msmErr = '';
-  try { refOk = verifyRange(tampered, V, new Transcript('range-proof')); }
+  try { refOk = verifyRange(tampered, V, new Transcript('bulletproofs-demo')); }
   catch (e) { refOk = false; refErr = formatError(e); }
-  try { msmOk = verifyRangeBatched(tampered, V, new Transcript('range-proof')); }
+  try { msmOk = verifyRangeBatched(tampered, V, new Transcript('bulletproofs-demo')); }
   catch (e) { msmOk = false; msmErr = formatError(e); }
   result.innerHTML = `
     <div><strong>Mutation:</strong> t̂ → t̂ + 1 (mod ℓ)</div>
@@ -794,6 +1085,7 @@ function runBenchmark(): void {
   const result = document.getElementById('bench-result');
   if (!result) return;
   result.innerHTML = '<div>Running…</div>';
+  setBusy('bench-run', true, 'Running…');
   // Defer so the UI can repaint.
   setTimeout(() => {
     try {
@@ -837,6 +1129,8 @@ function runBenchmark(): void {
       result.innerHTML = `<table style="border-collapse: collapse; width: 100%;">${rows.join('')}</table>`;
     } catch (e) {
       result.innerHTML = `<div><strong>Failed:</strong> ${formatError(e)}</div>`;
+    } finally {
+      setBusy('bench-run', false);
     }
   }, 30);
 }

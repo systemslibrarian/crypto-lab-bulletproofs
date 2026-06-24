@@ -5,12 +5,13 @@
  * Section 4.3. A true aggregate produces a single proof of size
  *   (2 * ceil(log2(n*m)) + 9) * 32 bytes.
  *
- * What this module does instead is run the single-value protocol m times,
- * binding each round into a shared parent transcript so that a verifier
- * cannot mix-and-match proofs across batches. The serialized size grows
+ * What this module does instead is run the single-value protocol m times over
+ * one shared, running transcript: each item's Fiat-Shamir challenges depend on
+ * every value and proof that preceded it, so a verifier cannot reorder the
+ * items or mix-and-match proofs across batches. The serialized size still grows
  * linearly with m. The educational value is the batched verifier flow and
- * domain-separated transcript composition; the size-savings claim of true
- * aggregation is reported separately by the UI as a theoretical comparison.
+ * sequential transcript binding; the size-savings claim of true aggregation is
+ * reported separately by the UI as a theoretical comparison.
  */
 
 import type { RistrettoPointValue } from '../crypto/ristretto';
@@ -53,8 +54,8 @@ export function proveAggregateRange(
   transcript.appendScalar('aggregate-count', BigInt(values.length));
   for (let i = 0; i < values.length; i++) {
     transcript.appendLabel(`aggregate-item:${i}`);
-    const itemTranscript = new Transcript('bulletproofs-aggregate-item');
-    const proof = proveRange(values[i], blinders[i], commitments[i], itemTranscript);
+    // Share the running transcript so each item is bound to all prior items.
+    const proof = proveRange(values[i], blinders[i], commitments[i], transcript);
     proofs.push(proof);
   }
 
@@ -85,8 +86,8 @@ export function verifyAggregateRange(
   transcript.appendScalar('aggregate-count', BigInt(commitments.length));
   for (let i = 0; i < commitments.length; i++) {
     transcript.appendLabel(`aggregate-item:${i}`);
-    const itemTranscript = new Transcript('bulletproofs-aggregate-item');
-    if (!verifyRange(proof.proofs[i], commitments[i], itemTranscript)) {
+    // Mirror the prover: one shared, running transcript across all items.
+    if (!verifyRange(proof.proofs[i], commitments[i], transcript)) {
       return false;
     }
   }

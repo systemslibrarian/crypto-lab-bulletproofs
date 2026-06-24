@@ -54,4 +54,9 @@ function ok(name, cond) {
   tamperedProofs[1] = { ...tamperedProofs[1], t_hat: addScalars(tamperedProofs[1].t_hat, 1n) };
   const bad = { ...proof, proofs: tamperedProofs };
   ok('aggregate tampering is rejected', !verifyAggregateRange(bad, commits, new Transcript('agg')));
+  // Items are sequentially bound to the running transcript, so reordering the
+  // (proof, commitment) pairs must be rejected even though each pair is internally valid.
+  const reordered = { ...proof, proofs: [proof.proofs[1], proof.proofs[0], proof.proofs[2]] };
+  const reorderedCommits = [commits[1], commits[0], commits[2]];
+  ok('aggregate is position-bound (reorder rejected)', !verifyAggregateRange(reordered, reorderedCommits, new Transcript('agg')));
 }

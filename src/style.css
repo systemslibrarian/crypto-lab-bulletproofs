@@ -594,11 +594,421 @@ textarea:focus-visible {
   color: var(--text);
 }
 
+/* ------------------------------------------------------ Journey stepper -- */
+
+.journey-stepper {
+  margin-bottom: 1.5rem;
+}
+
+.stepper {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  counter-reset: none;
+}
+
+.stepper-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.stepper-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -0.5rem;
+  width: 0.5rem;
+  height: 2px;
+  background: var(--border-color);
+}
+
+.stepper-dot {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+.stepper-step.done .stepper-dot {
+  background: linear-gradient(120deg, var(--success), #34d399);
+  color: #062b1c;
+  border-color: transparent;
+}
+
+.stepper-step.active {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color));
+  background: var(--accent-soft);
+}
+
+.stepper-step.active .stepper-dot {
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  color: #fff;
+  border-color: transparent;
+}
+
+.stepper-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.stepper-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.stepper-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------- Presets -- */
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.preset-chip {
+  min-height: 2rem; /* WCAG 2.5.8 target size */
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+.preset-chip:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-color));
+  filter: none;
+}
+
+/* --------------------------------------------------- Commitment readout -- */
+
+.commitment-readout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.9rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.commitment-identicon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0.4rem;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+}
+
+.identicon {
+  display: block;
+  border-radius: 8px;
+}
+
+.commitment-output {
+  margin-bottom: 0;
+}
+
+.hex-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.mini-copy {
+  min-height: 1.75rem; /* WCAG 2.5.8 target size (≥24px) */
+  padding: 0.3rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+.mini-copy:hover {
+  background: var(--accent-soft);
+  filter: none;
+}
+
+.mini-copy.copied {
+  background: color-mix(in srgb, var(--success) 22%, transparent);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+/* -------------------------------------------------------------- Bit grid -- */
+
+.bit-grid-slot {
+  margin-bottom: 1.1rem;
+}
+
+.bit-grid {
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem;
+  background: var(--background);
+}
+
+.bit-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.bit-byte {
+  display: flex;
+  gap: 2px;
+}
+
+.bit-cell {
+  width: 0.7rem;
+  height: 0.95rem;
+  border-radius: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-color);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.bit-cell.on {
+  background: linear-gradient(160deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.bit-grid-caption {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.bit-count {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ----------------------------------------------------------- IPA folding -- */
+
+.fold-list {
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.fold-row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) 3.5rem;
+  grid-template-areas: 'round bar sizes' 'lr lr lr';
+  gap: 0.3rem 0.6rem;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.fold-round {
+  grid-area: round;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.fold-bar-wrap {
+  grid-area: bar;
+  height: 0.75rem;
+  border-radius: 999px;
+  background: var(--background);
+  border: var(--border);
+  overflow: hidden;
+}
+
+.fold-bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fold-sizes {
+  grid-area: sizes;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.fold-lr {
+  grid-area: lr;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+}
+
+.fold-note {
+  margin-top: 0.9rem;
+  margin-bottom: 0;
+}
+
+/* -------------------------------------------------------- Live equation -- */
+
+.eval-verdict {
+  margin-top: 0.4rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.eval-verdict.ok {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.eval-verdict.bad {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+/* -------------------------------------------------------------- Glossary -- */
+
+.gloss {
+  position: relative;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  cursor: help;
+  color: var(--text);
+  border-radius: 2px;
+}
+
+.gloss:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.gloss-pop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.5rem);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(18rem, 86vw);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--surface-2);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-hover);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 50;
+  white-space: normal;
+}
+
+/* Edge-aware anchoring (set by JS) so the popover never clips off-screen. */
+.gloss.gloss-left .gloss-pop {
+  left: 0;
+  right: auto;
+  transform: none;
+}
+
+.gloss.gloss-right .gloss-pop {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.gloss:hover .gloss-pop,
+.gloss:focus .gloss-pop,
+.gloss:focus-within .gloss-pop {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ------------------------------------------------------ Busy + animation -- */
+
+button.is-busy {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@keyframes verify-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
+
+.verify-result.pulse {
+  animation: verify-pulse 0.7s ease-out 1;
+}
+
 /* ----------------------------------------------------------- Responsive --- */
 
 @media (max-width: 768px) {
   .panels {
     grid-template-columns: 1fr;
+  }
+
+  .stepper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stepper-step:not(:last-child)::after {
+    display: none;
+  }
+
+  .commitment-readout {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  /* Anchor tooltips to the term's left edge so they can't clip off-screen. */
+  .gloss-pop {
+    left: 0;
+    transform: none;
+    max-width: 80vw;
   }
 
   .control-group {

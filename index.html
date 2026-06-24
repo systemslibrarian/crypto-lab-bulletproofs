@@ -41,7 +41,8 @@
   }
   .cl-brand-text{display:flex;flex-direction:column;line-height:1.15}
   .cl-title{color:#eafff8;font-weight:700;font-size:1.05rem;letter-spacing:.12em}
-  .cl-sub{color:#5e8b80;font-size:.72rem;letter-spacing:.04em}
+  /* Local override: #5e8b80 was ~3:1 on #0b1512 (fails WCAG AA). #6f9c90 is ~6:1. Mirror upstream in shared-header.html. */
+  .cl-sub{color:#6f9c90;font-size:.72rem;letter-spacing:.04em}
   .cl-actions{display:flex;align-items:center;gap:.5rem}
   .cl-btn{
     display:inline-flex;align-items:center;gap:.4rem;
