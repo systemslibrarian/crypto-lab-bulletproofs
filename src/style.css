@@ -8,6 +8,8 @@
  */
 
 :root {
+  color-scheme: dark;
+
   --text: #e8edf2;
   --text-muted: #9aa7b4;
   --background: #0f1419;
@@ -18,8 +20,14 @@
 
   --accent: #4a9eff;
   --accent-2: #7c5cff;
+  /* Deeper accent pair for gradients that carry white text (buttons, step
+     badges, active stepper dots): white on #4a9eff is only 2.8:1, while white
+     on #2563eb/#7c3aed is ≥5.1:1 in both themes. */
+  --accent-strong: #2563eb;
+  --accent-2-strong: #7c3aed;
   --accent-soft: rgba(74, 158, 255, 0.12);
   --success: #34d399;
+  --on-success: #062b1c;
   --danger: #f87171;
   --focus-ring: #facc15;
 
@@ -31,6 +39,8 @@
 }
 
 [data-theme='light'] {
+  color-scheme: light;
+
   --text: #0f172a;
   --text-muted: #55657a;
   --background: #f1f4f8;
@@ -39,11 +49,14 @@
   --border-color: #dde3ea;
   --border: 1px solid var(--border-color);
 
-  --accent: #2563eb;
+  --accent: #1d4ed8;
   --accent-2: #7c3aed;
-  --accent-soft: rgba(37, 99, 235, 0.10);
-  --success: #15a05a;
-  --danger: #dc2626;
+  --accent-strong: var(--accent);
+  --accent-2-strong: var(--accent-2);
+  --accent-soft: rgba(29, 78, 216, 0.10);
+  --success: #116932;
+  --on-success: #ffffff;
+  --danger: #b91c1c;
 
   --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08);
   --shadow-hover: 0 2px 6px rgba(15, 23, 42, 0.10), 0 16px 40px rgba(15, 23, 42, 0.12);
@@ -64,6 +77,9 @@ textarea {
 }
 
 html {
+  /* Paint the canvas at the root: WebKit reports body->canvas propagation as
+     transparent, which breaks automated contrast checks. */
+  background-color: var(--background);
   transition: background-color 0.2s, color 0.2s;
   scroll-behavior: smooth;
 }
@@ -92,7 +108,7 @@ body {
 code {
   font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Code', Menlo, Consolas, monospace;
   font-size: 0.92em;
-  background: var(--accent-soft);
+  background-color: var(--accent-soft);
   color: var(--text);
   padding: 0.08em 0.4em;
   border-radius: 5px;
@@ -122,10 +138,10 @@ code {
   position: relative;
   overflow: hidden;
   border-bottom: var(--border);
-  background:
+  background-color: var(--surface);
+  background-image:
     radial-gradient(120% 140% at 12% -10%, var(--accent-soft), transparent 55%),
-    radial-gradient(110% 130% at 100% 0%, rgba(124, 92, 255, 0.12), transparent 50%),
-    var(--surface);
+    radial-gradient(110% 130% at 100% 0%, rgba(124, 92, 255, 0.12), transparent 50%);
 }
 
 .hero-inner {
@@ -186,7 +202,7 @@ code {
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  background: var(--accent-soft);
+  background-color: var(--accent-soft);
 }
 
 /* ------------------------------------------------------------------ Main -- */
@@ -206,7 +222,7 @@ main:focus {
   border-left: 4px solid var(--accent);
   border-radius: var(--radius-sm);
   padding: 0.9rem 1.1rem;
-  background: var(--surface);
+  background-color: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow);
   margin-bottom: 2.5rem;
@@ -297,7 +313,7 @@ main:focus {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #fff;
-  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  background: linear-gradient(120deg, var(--accent-strong), var(--accent-2-strong));
   padding: 0.32rem 0.75rem;
   border-radius: 999px;
   box-shadow: var(--shadow);
@@ -351,7 +367,7 @@ output#aggregate-count-value {
 input[type='text'],
 textarea {
   width: 100%;
-  background: var(--background);
+  background-color: var(--background);
   color: var(--text);
   border: var(--border);
   border-radius: var(--radius-sm);
@@ -370,7 +386,7 @@ textarea:focus {
 button {
   min-height: 2.85rem;
   padding: 0.7rem 1.2rem;
-  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  background: linear-gradient(120deg, var(--accent-strong), var(--accent-2-strong));
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
@@ -395,7 +411,7 @@ button:active {
 .button-row button:nth-child(2),
 #seed-clear,
 #import-proof {
-  background: var(--surface-2);
+  background-color: var(--surface-2);
   color: var(--text);
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-color));
   box-shadow: none;
@@ -404,7 +420,7 @@ button:active {
 .button-row button:nth-child(2):hover,
 #seed-clear:hover,
 #import-proof:hover {
-  background: var(--accent-soft);
+  background-color: var(--accent-soft);
   filter: none;
 }
 
@@ -440,7 +456,7 @@ textarea:focus-visible {
 }
 
 .info-block code {
-  background: var(--surface-2);
+  background-color: var(--surface-2);
 }
 
 .info-block table {
@@ -594,6 +610,11 @@ textarea:focus-visible {
   color: var(--text);
 }
 
+.scripture-footer a {
+  /* Default UA link blue is ~2:1 on the dark canvas; use the theme accent. */
+  color: var(--accent);
+}
+
 /* ------------------------------------------------------ Journey stepper -- */
 
 .journey-stepper {
@@ -616,7 +637,7 @@ textarea:focus-visible {
   padding: 0.7rem 0.85rem;
   border: var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background-color: var(--surface);
   box-shadow: var(--shadow);
   transition: border-color 0.18s ease, background 0.18s ease;
 }
@@ -627,7 +648,7 @@ textarea:focus-visible {
   right: -0.5rem;
   width: 0.5rem;
   height: 2px;
-  background: var(--border-color);
+  background-color: var(--border-color);
 }
 
 .stepper-dot {
@@ -639,24 +660,24 @@ textarea:focus-visible {
   border-radius: 999px;
   font-weight: 700;
   font-size: 0.85rem;
-  background: var(--surface-2);
+  background-color: var(--surface-2);
   color: var(--text-muted);
   border: 1px solid var(--border-color);
 }
 
 .stepper-step.done .stepper-dot {
-  background: linear-gradient(120deg, var(--success), #34d399);
-  color: #062b1c;
+  background-color: var(--success);
+  color: var(--on-success);
   border-color: transparent;
 }
 
 .stepper-step.active {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color));
-  background: var(--accent-soft);
+  background-color: var(--accent-soft);
 }
 
 .stepper-step.active .stepper-dot {
-  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  background: linear-gradient(120deg, var(--accent-strong), var(--accent-2-strong));
   color: #fff;
   border-color: transparent;
 }
@@ -693,14 +714,14 @@ textarea:focus-visible {
   font-size: 0.78rem;
   font-weight: 600;
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-  background: var(--surface-2);
+  background-color: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border-color);
   box-shadow: none;
 }
 
 .preset-chip:hover {
-  background: var(--accent-soft);
+  background-color: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border-color));
   filter: none;
 }
@@ -722,7 +743,7 @@ textarea:focus-visible {
   padding: 0.4rem;
   border: var(--border);
   border-radius: var(--radius-sm);
-  background: var(--background);
+  background-color: var(--background);
 }
 
 .identicon {
@@ -749,19 +770,19 @@ textarea:focus-visible {
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  background: var(--surface-2);
+  background-color: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border-color);
   box-shadow: none;
 }
 
 .mini-copy:hover {
-  background: var(--accent-soft);
+  background-color: var(--accent-soft);
   filter: none;
 }
 
 .mini-copy.copied {
-  background: color-mix(in srgb, var(--success) 22%, transparent);
+  background-color: color-mix(in srgb, var(--success) 22%, transparent);
   border-color: var(--success);
   color: var(--success);
 }
@@ -776,7 +797,7 @@ textarea:focus-visible {
   border: var(--border);
   border-radius: var(--radius-sm);
   padding: 0.9rem;
-  background: var(--background);
+  background-color: var(--background);
 }
 
 .bit-cells {
@@ -794,7 +815,7 @@ textarea:focus-visible {
   width: 0.7rem;
   height: 0.95rem;
   border-radius: 2px;
-  background: var(--surface-2);
+  background-color: var(--surface-2);
   border: 1px solid var(--border-color);
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
@@ -850,7 +871,7 @@ textarea:focus-visible {
   grid-area: bar;
   height: 0.75rem;
   border-radius: 999px;
-  background: var(--background);
+  background-color: var(--background);
   border: var(--border);
   overflow: hidden;
 }
@@ -894,13 +915,13 @@ textarea:focus-visible {
 }
 
 .eval-verdict.ok {
-  background: color-mix(in srgb, var(--success) 14%, transparent);
+  background-color: color-mix(in srgb, var(--success) 14%, transparent);
   color: var(--success);
   border: 1px solid var(--success);
 }
 
 .eval-verdict.bad {
-  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  background-color: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
   border: 1px solid var(--danger);
 }
@@ -932,7 +953,7 @@ textarea:focus-visible {
   font-weight: 400;
   line-height: 1.45;
   color: var(--text);
-  background: var(--surface-2);
+  background-color: var(--surface-2);
   border: var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-hover);

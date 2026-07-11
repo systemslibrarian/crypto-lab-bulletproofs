@@ -1033,7 +1033,7 @@ function runTamperDemo(): void {
     <div><strong>Mutation:</strong> t̂ → t̂ + 1 (mod ℓ)</div>
     <div><strong>Reference verifier:</strong> ${refOk ? '✗ INCORRECTLY accepted' : '✓ rejected'} ${refErr ? `(${refErr})` : ''}</div>
     <div><strong>Single-MSM verifier:</strong> ${msmOk ? '✗ INCORRECTLY accepted' : '✓ rejected'} ${msmErr ? `(${msmErr})` : ''}</div>
-    <div style="margin-top:0.5rem; opacity:0.8;">A single bit flip breaks the inner-product equation, so honest verifiers always reject.</div>
+    <div style="margin-top:0.5rem; color: var(--text-muted);">A single bit flip breaks the inner-product equation, so honest verifiers always reject.</div>
   `;
 }
 
