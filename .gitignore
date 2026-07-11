@@ -7,6 +7,10 @@ yarn.lock
 dist/
 build/
 
+# Playwright
+/test-results/
+/playwright-report/
+
 # IDE
 .vscode/
 .idea/
