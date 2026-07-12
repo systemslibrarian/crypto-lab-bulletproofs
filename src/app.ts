@@ -78,19 +78,17 @@ export function initializeApp(container: HTMLElement): void {
   container.innerHTML = `
     <section class="hero">
       <div class="hero-inner">
-        <span class="hero-eyebrow">Zero-knowledge proof · ristretto255</span>
-        <h1>Bulletproofs Range Proofs</h1>
-        <p class="hero-sub">
-          Prove that a committed secret lies in <code>[0, 2⁶⁴)</code> while revealing nothing
-          else about it. Short proofs, no trusted setup &mdash; generated and verified live in
-          your browser.
-        </p>
-        <ul class="hero-chips" aria-label="Key properties">
-          <li>≈ 672-byte proof</li>
-          <li>log-size in the range</li>
-          <li>no trusted setup</li>
-          <li>Fiat–Shamir, ROM</li>
-        </ul>
+        <header class="cl-hero">
+          <div class="cl-hero-main">
+            <h1 class="cl-hero-title">Bulletproofs</h1>
+            <p class="cl-hero-sub">Zero-knowledge range proof · no trusted setup · ristretto255</p>
+            <p class="cl-hero-desc">Commit a secret value, generate a short range proof that it lies in <code>[0, 2⁶⁴)</code>, and verify it live — inspecting the Pedersen commitment, Fiat–Shamir transcript, and logarithmic inner-product argument.</p>
+          </div>
+          <aside class="cl-hero-why" aria-label="Why it matters">
+            <span class="cl-hero-why-label">WHY IT MATTERS</span>
+            <p class="cl-hero-why-text">Confidential transactions and audits need to prove an amount is valid without revealing it. Bulletproofs do this with tiny proofs and no trusted setup, so there is no toxic waste and nothing to trust but the math.</p>
+          </aside>
+        </header>
       </div>
     </section>
     <main id="main-content" tabindex="-1">
