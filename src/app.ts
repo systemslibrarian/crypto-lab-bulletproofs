@@ -818,12 +818,12 @@ function createEquationsPanelMarkup(): string {
             <p class="panel-copy">A 64-bit Bulletproof verifier accepts only when these two equations both hold over ristretto255. Hover any symbol for a one-clause gloss.</p>
             <div class="info-block">
               <div><strong>(1) Polynomial identity at challenge x:</strong></div>
-              <div class="eq-line"><code>${gloss('t̂', 't̂')}·g + ${gloss('τₓ', 'τₓ')}·h  ?=  z²·V + ${gloss('δ(y,z)', 'δ(y,z)')}·g + x·${gloss('T₁', 'T₁')} + x²·${gloss('T₂', 'T₂')}</code></div>
+              <div class="eq-line" tabindex="0" role="region" aria-label="Verifier equation 1, polynomial identity"><code>${gloss('t̂', 't̂')}·g + ${gloss('τₓ', 'τₓ')}·h  ?=  z²·V + ${gloss('δ(y,z)', 'δ(y,z)')}·g + x·${gloss('T₁', 'T₁')} + x²·${gloss('T₂', 'T₂')}</code></div>
               <div class="panel-copy" style="margin-top: 0.5rem;">Ties the single scalar <code>t̂</code> back to the value inside <code>V</code>: it proves <code>t̂ = t(x)</code> for the prover's committed quadratic <code>t(X)</code> and that <code>V</code> opens to the claimed value.</div>
             </div>
             <div class="info-block" style="margin-top: 0.75rem;">
               <div><strong>(2) Inner-product argument over basis (G, H'):</strong></div>
-              <div class="eq-line"><code>P' = A + x·S + ⟨−z·1ⁿ, G⟩ + ⟨z·yⁿ + z²·2ⁿ, H'⟩ − ${gloss('μ', 'μ')}·h + t̂·u</code></div>
+              <div class="eq-line" tabindex="0" role="region" aria-label="Verifier equation 2, inner-product identity"><code>P' = A + x·S + ⟨−z·1ⁿ, G⟩ + ⟨z·yⁿ + z²·2ⁿ, H'⟩ − ${gloss('μ', 'μ')}·h + t̂·u</code></div>
               <div class="panel-copy" style="margin-top: 0.5rem;">This is the bit-check in disguise. The ${gloss('inner-product argument')} then proves <code>⟨l,r⟩ = t̂</code> in <code>O(log n)</code> rounds — certifying all 64 bit-constraints at once, giving the log-size proof.</div>
             </div>
             <div class="info-block" style="margin-top: 0.75rem;">
