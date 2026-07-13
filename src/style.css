@@ -799,6 +799,305 @@ textarea:focus-visible {
   color: var(--accent);
 }
 
+/* -------------------------------------------- Bit-grid reach legend/foot -- */
+
+.bit-cell.out-of-reach {
+  /* Same dark base, but a dashed border marks "the slider can't reach me".
+     Relies on the border pattern, not colour alone (WCAG 1.4.1). */
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color));
+  opacity: 0.85;
+}
+
+.bit-cell.out-of-reach.on {
+  /* If a beyond-slider bit is ever lit (e.g. via a seed), keep it legible. */
+  border-style: solid;
+}
+
+.bit-grid-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-top: 0.65rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.bit-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bit-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.bit-swatch.reach {
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-color);
+}
+
+.bit-swatch.beyond {
+  background-color: var(--surface-2);
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border-color));
+}
+
+.bit-grid-foot {
+  margin-top: 0.7rem;
+  margin-bottom: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* --------------------------------------------- Verifier-claim ramp panel -- */
+
+.ramp {
+  list-style: none;
+  display: grid;
+  gap: 0.85rem;
+  counter-reset: none;
+}
+
+.ramp-step {
+  border: var(--border);
+  border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--border-color));
+  border-radius: var(--radius-sm);
+  padding: 0.9rem 1rem;
+  background-color: var(--background);
+}
+
+.ramp-tier {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+
+.ramp-plain {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.ramp-algebra {
+  margin: 0;
+}
+
+.ramp-algebra > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  list-style: none;
+  font-weight: 600;
+}
+
+.ramp-algebra > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ramp-algebra > summary::before {
+  content: '▸';
+  color: var(--accent);
+  font-size: 0.85em;
+  transition: transform 0.15s ease;
+}
+
+.ramp-algebra[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.ramp-summary-hint {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.88rem;
+}
+
+.ramp-algebra > summary:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.ramp-algebra-body {
+  margin-top: 0.85rem;
+}
+
+.eq-line {
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.eq-line code {
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------- Cheat compare -- */
+
+.cheat-lead {
+  margin-bottom: 0.85rem;
+  line-height: 1.55;
+}
+
+.cheat-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.cheat-col {
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.75rem;
+  background-color: var(--surface);
+  min-width: 0;
+}
+
+.cheat-col-head {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+
+.cheat-col-sub {
+  font-size: 0.82rem;
+  margin-bottom: 0.45rem;
+}
+
+.cheat-hex {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  word-break: break-all;
+  line-height: 1.5;
+  padding: 0.35rem 0.45rem;
+  background-color: var(--background);
+  border-radius: 6px;
+  border: var(--border);
+}
+
+.cheat-hex:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.hex-diff {
+  background-color: color-mix(in srgb, var(--danger) 28%, transparent);
+  color: var(--text);
+  border-radius: 2px;
+  padding: 0 1px;
+  font-weight: 700;
+  /* An underline gives a non-colour cue for the differing nibbles (1.4.1). */
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+.cheat-verdict {
+  margin-bottom: 0.75rem;
+}
+
+.cheat-foot {
+  margin-bottom: 0;
+  font-size: 0.83rem;
+}
+
+@media (max-width: 768px) {
+  .cheat-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------ Bits→inner-product bridge -- */
+
+.bridge-lead {
+  margin-bottom: 0.75rem;
+}
+
+.bridge-rows {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.bridge-line {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) 1fr;
+  gap: 0.5rem 0.85rem;
+  align-items: center;
+}
+
+.bridge-tag {
+  font-size: 0.82rem;
+}
+
+.bridge-tag-sub {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.bridge-vec {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.bridge-cell {
+  min-width: 2.1rem;
+  padding: 0.15rem 0.35rem;
+  text-align: center;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+  border-radius: 5px;
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-color);
+  color: var(--text);
+}
+
+.bridge-cell.bit {
+  color: var(--text-muted);
+}
+
+.bridge-cell.bit.on {
+  background: linear-gradient(160deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+
+.bridge-ell {
+  color: var(--text-muted);
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+.bridge-punch {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border-color));
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 768px) {
+  .bridge-line {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
 /* ----------------------------------------------------------- IPA folding -- */
 
 .fold-list {
@@ -839,6 +1138,36 @@ textarea:focus-visible {
   border-radius: 999px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Play the collapse as a sequence: each round fades/slides in on its own delay,
+   and its length bar animates from full (64) down to the round's target width,
+   so log₂(64)=6 halvings are felt as motion, not read as a static table. */
+.fold-row.is-folding {
+  animation: fold-row-in 0.4s ease-out both;
+  animation-delay: var(--fold-delay, 0s);
+}
+
+.fold-row.is-folding .fold-bar {
+  animation: fold-bar-shrink 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--fold-delay, 0s);
+}
+
+@keyframes fold-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fold-bar-shrink {
+  from { width: 100%; }
+  to { width: var(--fold-target, 100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold-row.is-folding,
+  .fold-row.is-folding .fold-bar {
+    animation: none;
+  }
 }
 
 .fold-sizes {

@@ -19,6 +19,8 @@ Bulletproofs are short non-interactive zero-knowledge proofs that a committed va
 
 Users can commit a 64-bit value, generate a live range proof over ristretto255, verify it, inspect the Fiat-Shamir challenges and per-component proof sizes, run a *batched* multi-value flow, compare its size against the theoretical aggregated Bulletproof, and watch the cheat mode get rejected when the committed value is outside the legal range.
 
+The demo is built as a guided journey — a live **Commit → Prove → Verify → Explore** stepper tracks where you are — and layers its explanation so both a first-time visitor and a working cryptographer get something. The **"What the Verifier Checks"** panel ramps from a plain-English claim, to "the value is the sum of its bits times powers of two", down to the two full verifier equations behind a *Show the algebra* toggle, with each symbol (`T₁`, `T₂`, `τₓ`, `μ`, `δ(y,z)`, `t̂`) carrying a hover gloss. A **"From bits to one inner product"** panel bridges the bit-grid to the folding view by deriving the real vectors `l = a_L − z·1ⁿ` and `r` from your value's live bits and challenges, making explicit *why* 64 bit-constraints collapse into a single inner product. The folding view then **animates** the log₂(64) = 6 rounds shrinking round by round.
+
 ### Scope notes
 
 - The single-value range proof is the full Bünz et al. 2018 Protocol 2 with the `H' = y^{-i} H` basis change and a transcript-bound IPA.
@@ -27,6 +29,8 @@ Users can commit a 64-bit value, generate a live range proof over ristretto255, 
 - Proofs can be **exported and re-verified** from hex bytes, demonstrating that Bulletproofs are non-interactive.
 - A **deterministic seed mode** swaps in a SHA-512 counter PRNG so blinders and proofs are reproducible bit-for-bit (teaching/testing only).
 - A **manual tampering panel** flips a bit in `t̂` and shows both verifiers reject.
+- The **cheat panel** narrates its own logic: it shows side-by-side the commitment to your out-of-range value versus the commitment the prover could actually prove (`v mod 2⁶⁴`), with the differing hex nibbles highlighted, so the rejection reads as a binding failure rather than "the prover just refuses big numbers".
+- The **bit-grid** marks which bits the 24-bit slider can reach versus the full 64-bit proof range, with a caption noting the proof always covers `[0, 2⁶⁴)`.
 - A **benchmark panel** measures prove and verify times for the single-value proof and aggregates at *m* = 1, 2, 4, 8.
 - All proof sizes shown for the single-value flow are measured from the actual serialized proof bytes, not from a formula.
 

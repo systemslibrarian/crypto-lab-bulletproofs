@@ -23,10 +23,14 @@ export function renderFolding(ipa: IPAProof): string {
     const pct = Math.max(7, (next / N) * 100);
     const lHex = ipa.L[r].toHex().slice(0, 10);
     const rHex = ipa.R[r].toHex().slice(0, 10);
+    // Stagger each round so the collapse plays as a sequence, not a static
+    // table: the vector-length bar shrinks and the (L, R) pair fades in per
+    // round. Purely presentational; reduced-motion users see it settled at once.
+    const delay = (r * 0.28).toFixed(2);
     rows += `
-      <li class="fold-row">
+      <li class="fold-row is-folding" style="--fold-delay:${delay}s">
         <span class="fold-round">round ${r + 1}</span>
-        <span class="fold-bar-wrap"><span class="fold-bar" style="width:${pct.toFixed(1)}%"></span></span>
+        <span class="fold-bar-wrap"><span class="fold-bar" style="--fold-target:${pct.toFixed(1)}%;width:${pct.toFixed(1)}%"></span></span>
         <span class="fold-sizes">${sizeNow}&rarr;${next}</span>
         <span class="fold-lr"><code>L ${lHex}…</code><code>R ${rHex}…</code></span>
       </li>`;

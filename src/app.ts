@@ -9,6 +9,7 @@ import { createVerifyPanel } from './ui/verify-panel';
 import { renderBitGrid } from './ui/bit-grid';
 import { identiconSvg } from './ui/identicon';
 import { renderFolding } from './ui/folding-view';
+import { renderBridge, bridgePlaceholder } from './ui/bridge-view';
 import { renderStepper, type JourneyState } from './ui/stepper';
 import { gloss } from './ui/glossary';
 import { attachCopyButtons } from './ui/clipboard';
@@ -20,6 +21,7 @@ import {
   addScalars,
   mulScalars,
   negScalar,
+  ORDER,
 } from './crypto/scalar';
 import type { RistrettoPointValue } from './crypto/ristretto';
 import { bytesToPoint, scalarMult, addPoints, RISTRETTO_BASEPOINT } from './crypto/ristretto';
@@ -115,6 +117,7 @@ export function initializeApp(container: HTMLElement): void {
           <div id="transcript-panel" aria-label="Transcript panel"></div>
           <section id="introspection-panel" class="utility-panel" aria-label="Proof introspection panel"></section>
           <section id="equations-panel" class="utility-panel" aria-label="Verifier equations panel"></section>
+          <section id="bridge-panel" class="utility-panel" aria-label="From bits to inner product panel"></section>
           <section id="folding-panel" class="utility-panel" aria-label="Inner-product folding panel"></section>
         </div>
       </section>
@@ -168,6 +171,8 @@ export function initializeApp(container: HTMLElement): void {
   if (introspectionPanel) introspectionPanel.innerHTML = createIntrospectionPanelMarkup();
   const equationsPanel = document.getElementById('equations-panel');
   if (equationsPanel) equationsPanel.innerHTML = createEquationsPanelMarkup();
+  const bridgePanel = document.getElementById('bridge-panel');
+  if (bridgePanel) bridgePanel.innerHTML = createBridgePanelMarkup();
   const foldingPanel = document.getElementById('folding-panel');
   if (foldingPanel) foldingPanel.innerHTML = createFoldingPanelMarkup();
   const portablePanel = document.getElementById('portable-panel');
@@ -391,6 +396,8 @@ function updateCommitment(): void {
 function resetProofUI(): void {
   const introspection = document.getElementById('introspection-content');
   if (introspection) introspection.innerHTML = 'No proof has been generated yet.';
+  const bridge = document.getElementById('bridge-content');
+  if (bridge) bridge.innerHTML = bridgePlaceholder();
   const folding = document.getElementById('folding-content');
   if (folding) folding.innerHTML = 'Generate a proof to watch the inner-product vectors fold from 64 down to 1.';
   const evalBox = document.getElementById('equation-eval');
@@ -452,6 +459,7 @@ function generateProof(): void {
     }
 
     renderIntrospection(proof, proverMs, null);
+    renderBridgeView(proof);
     renderFoldingView(proof);
     renderEquationEval(proof);
     updateStepper();
@@ -514,7 +522,8 @@ function verifyProof(batched: boolean): void {
 function createAggregatePanelMarkup(): string {
   return `
     <h3>Batched Proofs</h3>
-    <p class="panel-copy">This demo runs the single-value protocol once per value, bound to a shared transcript. The bars below contrast that with what a true Bulletproofs aggregate would cost in theory. Use the button to also run a real aggregated proof for power-of-two batch sizes.</p>
+    <p class="panel-copy"><strong>Why aggregate at all?</strong> Proving <em>m</em> values separately costs <em>m</em> full proofs. A true aggregated Bulletproof proves all <em>m</em> at once by sharing one set of ${gloss('Fiat–Shamir')} challenges and running a <em>single</em> ${gloss('inner-product argument')} over the concatenated bit-vectors — so the proof grows like <code>log₂(m·64)</code>, only a couple of extra rounds, not <em>m</em>× the bytes.</p>
+    <p class="panel-copy">This demo runs the single-value protocol once per value, bound to a shared transcript. The bars below contrast that "batched" cost with what a true aggregate would cost in theory. Use the button to also run a real aggregated proof for power-of-two batch sizes.</p>
     <div class="control-group stack-on-mobile">
       <label for="aggregate-count">Values:</label>
       <input id="aggregate-count" type="range" min="1" max="${MAX_AGGREGATE_VALUES}" value="4" aria-describedby="aggregate-count-value" />
@@ -601,18 +610,61 @@ function runCheatDemo(value: bigint): void {
       : 'Verifier rejected: the proof opens a different commitment than the one published.';
   }
 
+  const honestHex = honestCommitment.toHex();
+  const fakeHex = fakeCommitment.toHex();
+  const diff = diffHex(honestHex.slice(0, 32), fakeHex.slice(0, 32));
+
   cheatResult.innerHTML = `
-    <div><strong>Attempted value:</strong> ${value.toString()}</div>
-    <div><strong>64-bit normalized value:</strong> ${truncated.toString()}</div>
-    <div><strong>Honest commitment prefix:</strong> ${honestCommitment.toHex().slice(0, 32)}...</div>
-    <div><strong>Prover status:</strong> ${proverError ? 'aborted (' + proverError + ')' : 'produced a proof for the truncated witness'}</div>
-    <div><strong>Verifier outcome:</strong> ${verifierMessage}</div>
+    <p class="cheat-lead">You committed to <strong>${value.toString()}</strong>, which is outside <code>[0, 2⁶⁴)</code>. The prover can only build a valid proof for a 64-bit witness, so the closest it can honestly do is prove the truncation <code>v mod 2⁶⁴ = ${truncated.toString()}</code> — a <em>different</em> value, so a <em>different</em> commitment.</p>
+    <div class="cheat-compare" role="group" aria-label="Commitment to your value versus commitment the prover could actually prove">
+      <div class="cheat-col">
+        <div class="cheat-col-head">Commitment to YOUR value</div>
+        <div class="cheat-col-sub"><code>V = ${value.toString()}·g + γ·h</code></div>
+        <div class="cheat-hex" tabindex="0" role="region" aria-label="Your commitment, first 16 bytes">${diff.a}…</div>
+      </div>
+      <div class="cheat-col">
+        <div class="cheat-col-head">Commitment the prover can prove</div>
+        <div class="cheat-col-sub"><code>V' = ${truncated.toString()}·g + γ·h</code></div>
+        <div class="cheat-hex" tabindex="0" role="region" aria-label="Provable commitment, first 16 bytes">${diff.b}…</div>
+      </div>
+    </div>
+    <div class="cheat-verdict eval-verdict ${proverError || verifierMessage.startsWith('Verifier rejected') ? 'ok' : 'bad'}">
+      ${proverError
+        ? '✓ Prover aborted: it refuses to build a proof for an out-of-range value.'
+        : verifierMessage.startsWith('Verifier rejected')
+          ? '✓ These are different points, so the proof is rejected — the published commitment does not open to the witness the prover could actually prove.'
+          : '✗ ' + verifierMessage}
+    </div>
+    <p class="panel-copy cheat-foot">This is the <strong>binding</strong> property doing its job: a commitment can be opened only one way, so a malicious prover cannot make an out-of-range value look in-range.</p>
   `;
 
   setAppStatus(
     `Cheat demo for ${value.toString()}: ${proverError ? 'prover aborted' : 'verifier rejected'}.`,
     'error'
   );
+}
+
+/**
+ * Highlight the characters that differ between two hex prefixes. Returns HTML
+ * for each string with mismatching nibbles wrapped in a marked span, so the
+ * "two different points" claim is visible rather than asserted.
+ */
+function diffHex(a: string, b: string): { a: string; b: string } {
+  let outA = '';
+  let outB = '';
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    const ca = a[i] ?? '';
+    const cb = b[i] ?? '';
+    if (ca !== cb) {
+      if (ca) outA += `<mark class="hex-diff">${ca}</mark>`;
+      if (cb) outB += `<mark class="hex-diff">${cb}</mark>`;
+    } else {
+      outA += ca;
+      outB += cb;
+    }
+  }
+  return { a: outA, b: outB };
 }
 
 function renderProofSizeChart(): void {
@@ -748,23 +800,60 @@ function renderIntrospection(
 function createEquationsPanelMarkup(): string {
   return `
     <h3>What the Verifier Checks</h3>
-    <p class="panel-copy">A 64-bit Bulletproof verifier accepts only when these two equations both hold over ristretto255.</p>
-    <div class="info-block">
-      <div><strong>(1) Polynomial identity at challenge x:</strong></div>
-      <div><code>t̂·g + τₓ·h  ?=  z²·V + δ(y,z)·g + x·T₁ + x²·T₂</code></div>
-      <div class="panel-copy" style="margin-top: 0.5rem;">Proves t̂ = t(x) for the committed quadratic t(X) and that V opens to the claimed value with blinding γ.</div>
-    </div>
-    <div class="info-block" style="margin-top: 0.75rem;">
-      <div><strong>(2) Inner-product argument over basis (G, H'):</strong></div>
-      <div><code>P' = A + x·S + ⟨−z·1ⁿ, G⟩ + ⟨z·yⁿ + z²·2ⁿ, H'⟩ − μ·h + t̂·u</code></div>
-      <div class="panel-copy" style="margin-top: 0.5rem;">The IPA then proves knowledge of l, r with ⟨l,r⟩ = t̂ in O(log n) rounds, giving the log-size proof.</div>
-    </div>
-    <div class="info-block" style="margin-top: 0.75rem;">
-      <div><strong>Why cheating fails:</strong> z, y, x are derived from the ${gloss('transcript')} via ${gloss('Fiat–Shamir')}, so a malicious prover cannot pick them. Any tampered field changes the reconstructed P' or breaks equation (1), and the verifier rejects.</div>
-    </div>
-    <div style="margin-top: 0.75rem;"><strong>Live evaluation of equation (1):</strong></div>
-    <div id="equation-eval" class="info-block" role="status" aria-live="polite" style="margin-top: 0.5rem;">Generate a proof to evaluate the equation on live values.</div>
+    <p class="panel-copy">The same claim, told at three depths. Start in plain English; open each layer only when you want more.</p>
+
+    <ol class="ramp" aria-label="Verifier claim, from plain English down to the algebra">
+      <li class="ramp-step">
+        <span class="ramp-tier">Plain English</span>
+        <p class="ramp-plain"><strong>The commitment <code>V</code> hides a whole number that fits in 64 bits</strong> — i.e. it lies in <code>[0, 2⁶⁴)</code>. The verifier confirms exactly that, and learns nothing else about the number.</p>
+      </li>
+      <li class="ramp-step">
+        <span class="ramp-tier">One line deeper</span>
+        <p class="ramp-plain">A 64-bit number is just <em>the sum of its bits times powers of two</em>: <code>v = Σ bᵢ·2ⁱ</code> with every <code>bᵢ ∈ {0,1}</code>. So the verifier really checks one thing: <strong>each of the 64 bits is 0 or 1.</strong> Bundle those 64 tiny checks into a single inner product and you get a proof whose size grows like <code>log₂(64) = 6</code>, not 64.</p>
+      </li>
+      <li class="ramp-step">
+        <details class="ramp-algebra">
+          <summary><span class="ramp-tier">The algebra</span> <span class="ramp-summary-hint">Show the two equations behind that claim</span></summary>
+          <div class="ramp-algebra-body">
+            <p class="panel-copy">A 64-bit Bulletproof verifier accepts only when these two equations both hold over ristretto255. Hover any symbol for a one-clause gloss.</p>
+            <div class="info-block">
+              <div><strong>(1) Polynomial identity at challenge x:</strong></div>
+              <div class="eq-line"><code>${gloss('t̂', 't̂')}·g + ${gloss('τₓ', 'τₓ')}·h  ?=  z²·V + ${gloss('δ(y,z)', 'δ(y,z)')}·g + x·${gloss('T₁', 'T₁')} + x²·${gloss('T₂', 'T₂')}</code></div>
+              <div class="panel-copy" style="margin-top: 0.5rem;">Ties the single scalar <code>t̂</code> back to the value inside <code>V</code>: it proves <code>t̂ = t(x)</code> for the prover's committed quadratic <code>t(X)</code> and that <code>V</code> opens to the claimed value.</div>
+            </div>
+            <div class="info-block" style="margin-top: 0.75rem;">
+              <div><strong>(2) Inner-product argument over basis (G, H'):</strong></div>
+              <div class="eq-line"><code>P' = A + x·S + ⟨−z·1ⁿ, G⟩ + ⟨z·yⁿ + z²·2ⁿ, H'⟩ − ${gloss('μ', 'μ')}·h + t̂·u</code></div>
+              <div class="panel-copy" style="margin-top: 0.5rem;">This is the bit-check in disguise. The ${gloss('inner-product argument')} then proves <code>⟨l,r⟩ = t̂</code> in <code>O(log n)</code> rounds — certifying all 64 bit-constraints at once, giving the log-size proof.</div>
+            </div>
+            <div class="info-block" style="margin-top: 0.75rem;">
+              <div><strong>Why cheating fails:</strong> z, y, x are derived from the ${gloss('transcript')} via ${gloss('Fiat–Shamir')}, so a malicious prover cannot pick them. Any tampered field changes the reconstructed P' or breaks equation (1), and the verifier rejects.</div>
+            </div>
+            <div style="margin-top: 0.75rem;"><strong>Live evaluation of equation (1):</strong></div>
+            <div id="equation-eval" class="info-block" role="status" aria-live="polite" style="margin-top: 0.5rem;">Generate a proof to evaluate the equation on live values.</div>
+          </div>
+        </details>
+      </li>
+    </ol>
   `;
+}
+
+function createBridgePanelMarkup(): string {
+  return `
+    <h3>From bits to one inner product</h3>
+    <p class="panel-copy">The missing link between the bit-grid and the folding below: <em>why</em> proving 64 bits becomes proving a single inner product.</p>
+    <div id="bridge-content">${bridgePlaceholder()}</div>
+  `;
+}
+
+function renderBridgeView(proof: RangeProof): void {
+  const target = document.getElementById('bridge-content');
+  if (!target) return;
+  if (!proof.challenges) {
+    target.innerHTML = bridgePlaceholder();
+    return;
+  }
+  target.innerHTML = renderBridge(appState.currentValue, proof.challenges, ORDER);
 }
 
 function createFoldingPanelMarkup(): string {
