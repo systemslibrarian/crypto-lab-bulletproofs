@@ -9,7 +9,7 @@ Bulletproofs are short non-interactive zero-knowledge proofs that a committed va
 - **Confidential transactions** where you need to prove amounts are non-negative without revealing them — size beats naive OR-proofs by orders of magnitude.
 - **Any protocol needing range proofs without a trusted setup ceremony** — unlike Groth16, there is no toxic waste.
 - **Aggregated multi-value proofs** where the log-size benefit compounds — dozens of values in a single sub-kilobyte proof.
-- **Do NOT use** when you need constant-size proofs — Groth16 is 192 bytes regardless; Bulletproofs grow with `log(range × count)`.
+- **Do NOT use** when you need constant-size proofs — a Groth16 proof is three group elements regardless of circuit size, which is 192 bytes on BLS12-381 and 128 bytes on BN254 (compressed); Bulletproofs grow with `log(range × count)`.
 - **Do NOT use** when verifier time matters more than prover time — verification is O(n), not sublinear.
 - **Do NOT use in production** — this is a from-scratch teaching implementation; it has not been audited, makes no constant-time guarantees, and must not be used to protect real assets.
 
