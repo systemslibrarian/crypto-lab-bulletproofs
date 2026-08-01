@@ -16,6 +16,12 @@
   --surface: #161c24;
   --surface-2: #1d2530;
   --border-color: #2a3441;
+  /* Control boundaries only (text inputs, textareas, secondary buttons, preset
+     chips, copy buttons). Those controls are filled with --background or
+     --surface-2, which sit at 1.06-1.11:1 against the surface behind them, so the
+     border is the sole boundary and WCAG 2.1 SC 1.4.11 requires 3:1. --border /
+     --border-color stay as-is for decorative rules (panels, tables, charts). */
+  --border-color-strong: #5c738f;
   --border: 1px solid var(--border-color);
 
   --accent: #4a9eff;
@@ -47,6 +53,7 @@
   --surface: #ffffff;
   --surface-2: #f6f8fb;
   --border-color: #dde3ea;
+  --border-color-strong: #738ba8;
   --border: 1px solid var(--border-color);
 
   --accent: #1d4ed8;
@@ -324,7 +331,7 @@ textarea {
   width: 100%;
   background-color: var(--background);
   color: var(--text);
-  border: var(--border);
+  border: 1px solid var(--border-color-strong);
   border-radius: var(--radius-sm);
   padding: 0.6rem 0.7rem;
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
@@ -368,7 +375,7 @@ button:active {
 #import-proof {
   background-color: var(--surface-2);
   color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-color));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-color-strong));
   box-shadow: none;
 }
 
@@ -679,13 +686,13 @@ textarea:focus-visible {
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   background-color: var(--surface-2);
   color: var(--text);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-color-strong);
   box-shadow: none;
 }
 
 .preset-chip:hover {
   background-color: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-color));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-color-strong));
   filter: none;
 }
 
@@ -735,7 +742,7 @@ textarea:focus-visible {
   text-transform: uppercase;
   background-color: var(--surface-2);
   color: var(--text);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-color-strong);
   box-shadow: none;
 }
 
