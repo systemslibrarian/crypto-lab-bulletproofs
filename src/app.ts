@@ -1037,7 +1037,8 @@ function runTrueAggregateDemo(): void {
   if (!result || !aggregateCount) return;
 
   const requested = Number.parseInt(aggregateCount.value, 10);
-  // Snap to the largest power of two ≤ requested (and ≥ 1).
+  // Snap DOWN to the largest power of two ≤ requested (and ≥ 1) — never up, so
+  // the run never proves more values than the slider asked for.
   let m = 1;
   while (m * 2 <= requested) m *= 2;
 
@@ -1074,7 +1075,7 @@ function runTrueAggregateDemo(): void {
   const savedVsBatched = batched - bytes;
 
   result.innerHTML = `
-    <div><strong>Batch size used:</strong> ${m} (snapped from ${requested} to nearest power of two)</div>
+    <div><strong>Batch size used:</strong> ${m} (snapped from ${requested} down to the largest power of two ≤ ${requested})</div>
     <div><strong>Single aggregated proof size:</strong> ${bytes} B</div>
     <div><strong>Equivalent batched (m × 672 B):</strong> ${batched} B</div>
     <div><strong>Bytes saved by aggregation:</strong> ${savedVsBatched} B</div>
