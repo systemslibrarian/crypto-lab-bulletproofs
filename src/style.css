@@ -369,11 +369,20 @@ button:active {
 }
 
 /* Secondary buttons: the second control in a two-button row reads as the
-   alternate action (e.g. single-MSM verifier, "Use crypto RNG"). */
+   alternate action (e.g. single-MSM verifier, "Use crypto RNG").
+
+   `background-image: none` is load-bearing. The base `button` rule paints its
+   accent gradient via the `background` shorthand, i.e. via background-IMAGE.
+   Overriding only `background-color` left that gradient painting on top, so
+   every "secondary" control still rendered as a filled accent pill while
+   carrying --text, a colour picked for --surface-2. Measured 4.39:1 in dark and
+   2.66:1 in light, both below WCAG AA. axe never reported it because axe
+   declines to compute contrast over a gradient at all. */
 .button-row button:nth-child(2),
 #seed-clear,
 #import-proof {
   background-color: var(--surface-2);
+  background-image: none;
   color: var(--text);
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-color-strong));
   box-shadow: none;
@@ -389,7 +398,10 @@ button:active {
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+/* Scrollable panes carry tabindex="0" for WCAG 2.1.1, so they are real tab
+   stops and need a visible focus indicator like any other. */
+.scroll-region:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
@@ -685,6 +697,9 @@ textarea:focus-visible {
   font-weight: 600;
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   background-color: var(--surface-2);
+  /* See the secondary-button rule: the base `button` gradient is a background
+     IMAGE and survives a background-color override. */
+  background-image: none;
   color: var(--text);
   border: 1px solid var(--border-color-strong);
   box-shadow: none;
@@ -741,6 +756,9 @@ textarea:focus-visible {
   letter-spacing: 0.03em;
   text-transform: uppercase;
   background-color: var(--surface-2);
+  /* See the secondary-button rule: the base `button` gradient is a background
+     IMAGE and survives a background-color override. */
+  background-image: none;
   color: var(--text);
   border: 1px solid var(--border-color-strong);
   box-shadow: none;
@@ -1082,8 +1100,14 @@ textarea:focus-visible {
   color: var(--text-muted);
 }
 
+/* This cell is the only accent-gradient fill in the lab that carries text, so
+   it needs the deep pair, not the plain one: white on --accent (#4a9eff in
+   dark) measures 2.75:1, while white on --accent-strong (#2563eb) measures
+   5.12:1. Same rationale as the --accent-strong definition at the top of this
+   file; .bit-cell.on and the chart bars keep the plain pair because they carry
+   no text. */
 .bridge-cell.bit.on {
-  background: linear-gradient(160deg, var(--accent), var(--accent-2));
+  background: linear-gradient(160deg, var(--accent-strong), var(--accent-2-strong));
   border-color: transparent;
   color: #fff;
   font-weight: 700;

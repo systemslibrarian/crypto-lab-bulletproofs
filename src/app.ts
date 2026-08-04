@@ -1165,7 +1165,11 @@ function createBenchmarkPanelMarkup(): string {
     <h3>Benchmark</h3>
     <p>Times prover and both verifiers for the single-value proof and the true aggregated proof at <em>m</em> = 1, 2, 4, 8.</p>
     <button id="bench-run" type="button">Run benchmark</button>
-    <div id="bench-result" class="info-block" style="margin-top: 0.5rem;">Click the button above. May take a few seconds.</div>
+    <!-- tabindex="0": the results are a five-column table that scrolls inside
+         this box, so WCAG 2.1.1 requires the scroll to be reachable by
+         keyboard. The table only exists once the button has been pressed, which
+         is why a load-time-only scan never saw the overflow. -->
+    <div id="bench-result" class="info-block scroll-region" tabindex="0" role="group" aria-label="Benchmark results" style="margin-top: 0.5rem;">Click the button above. May take a few seconds.</div>
   `;
 }
 
