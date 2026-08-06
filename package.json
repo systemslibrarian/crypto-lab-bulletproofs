@@ -22,7 +22,7 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "@noble/curves": "^1.4.0",
+    "@noble/curves": "^2.2.0",
     "@noble/hashes": "^1.4.0"
   }
 }
