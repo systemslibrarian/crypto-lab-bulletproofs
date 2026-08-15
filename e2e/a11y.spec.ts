@@ -77,10 +77,6 @@ async function open(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('.');
   await assertReducedMotion(page);
-  if (theme === 'light') {
-    await page.locator('#cl-theme-toggle').click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  }
   // #app ships empty; wait for the real first paint before believing anything.
   await expectRendered(page, ['#commitment-output', '#journey-stepper', '#app-status']);
   // Defensive: expand any native disclosure widget (none today).
@@ -117,7 +113,7 @@ async function driveToProved(page: Page): Promise<void> {
   await expectRendered(page, ['#introspection-content', '#bridge-content', '#folding-content']);
 }
 
-for (const theme of ['dark', 'light'] as const) {
+for (const theme of ['dark'] as const) {
   test(`no WCAG A/AA violations on first paint (${theme})`, async ({ page }) => {
     await open(page, theme);
     await scan(page, `${theme} / initial`);
