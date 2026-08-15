@@ -24,6 +24,14 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # All ten tsx suites: the range-proof core, boundaries, serialization,
+      # true aggregation, batch verification, extras, the inner-product
+      # argument, proof soundness, the UI smoke pass and the static a11y
+      # check. Deploy previously ran only test:a11y (Playwright), so none of
+      # the nine correctness suites gated a publish — a build whose proofs
+      # verified nothing could ship as long as the page passed axe.
+      - name: Correctness suites
+        run: npm test
       - run: npm run build
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
