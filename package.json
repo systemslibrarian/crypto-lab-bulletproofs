@@ -18,7 +18,7 @@
     "gh-pages": "^6.1.0",
     "linkedom": "^0.18.13",
     "tsx": "^4.23.12",
-    "typescript": "^5.0.0",
+    "typescript": "^7.0.2",
     "vite": "^8.2.1"
   },
   "dependencies": {
