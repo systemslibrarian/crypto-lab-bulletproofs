@@ -13,9 +13,9 @@ import {
   scalarMult,
   RISTRETTO_BASEPOINT,
   hashToRistretto,
+  RistrettoPoint,
   type RistrettoPointValue,
 } from '../crypto/ristretto';
-import { RistrettoPoint } from '@noble/curves/ed25519';
 import { getHGenerator } from '../crypto/pedersen';
 import {
   addScalars,

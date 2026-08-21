@@ -5,7 +5,7 @@
  * Protocol: Bünz et al. 2018 - "Bulletproofs: Short Proofs for Confidential Transactions and More"
  */
 
-import { sha512 } from '@noble/hashes/sha512';
+import { sha512 } from '@noble/hashes/sha2.js';
 import type { RistrettoPointValue } from './ristretto';
 import { bytesToScalar, scalarToBytes } from './scalar';
 
