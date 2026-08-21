@@ -4,7 +4,7 @@
  *   = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed
  */
 
-import { sha512 } from '@noble/hashes/sha512';
+import { sha512 } from '@noble/hashes/sha2.js';
 
 export const ORDER =
   0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3edn;
