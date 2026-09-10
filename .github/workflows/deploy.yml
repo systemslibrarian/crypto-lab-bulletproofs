@@ -133,3 +133,5 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# verify: throwaway PR to prove the gate judges pull requests. Reverted with the branch.
