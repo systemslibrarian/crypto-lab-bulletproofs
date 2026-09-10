@@ -13,8 +13,8 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.62.1",
-    "@types/node": "^26.4.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.4.1",
     "gh-pages": "^6.1.0",
     "linkedom": "^0.18.13",
     "tsx": "^4.23.13",
