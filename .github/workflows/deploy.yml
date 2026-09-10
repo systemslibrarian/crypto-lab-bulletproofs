@@ -121,6 +121,7 @@ jobs:
           # and the site would keep serving the previous build. Ask for it explicitly;
           # a workflow_dispatch through the API is not suppressed. The dispatched run
           # is the same gate-then-deploy pipeline, so a bad merge still ships nothing.
+          #
           # deploy.yml is this file, and after the consolidation it is the only
           # workflow this repo has -- so the dispatched name cannot drift off a file
           # that no longer exists.
