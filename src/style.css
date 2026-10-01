@@ -1285,6 +1285,8 @@ textarea:focus-visible,
   transition: opacity 0.15s ease, visibility 0.15s ease;
   z-index: 50;
   white-space: normal;
+  /* Set by fitAllGlosses() in app.ts to keep the popover inside the viewport. */
+  translate: var(--gloss-dx, 0) 0;
 }
 
 /* Edge-aware anchoring (set by JS) so the popover never clips off-screen. */

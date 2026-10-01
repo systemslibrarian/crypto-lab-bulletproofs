@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 import { auditContrast, formatContrastFailures } from './contrast';
+import { expectNoHorizontalOverflow } from './reflow';
 
 /**
  * WCAG regression gate. Deploys are already gated on the range-proof KATs; this
@@ -182,3 +183,85 @@ for (const theme of ['dark'] as const) {
     await scan(page, `${theme} / aggregate + benchmark tables`);
   });
 }
+
+/**
+ * WCAG 1.4.10 reflow at phone width, over the same states the scans drive.
+ *
+ * At 380px this page used to scroll sideways to 561px on first paint, with
+ * every test above green: each glossary popover is hidden with `visibility`,
+ * which still occupies layout, and the narrow-viewport CSS anchored them at
+ * the term's left edge, so terms near the right of a line pushed theirs past
+ * the viewport. The last test also focuses every term, so a VISIBLE popover
+ * running off the edge fails here too.
+ */
+test.describe('reflow at 380px', () => {
+  test.use({ viewport: { width: 380, height: 800 } });
+
+  test('no horizontal page scroll on first paint', async ({ page }) => {
+    await open(page, 'dark');
+    await expectNoHorizontalOverflow(page, '380px / initial');
+  });
+
+  test('no horizontal page scroll across the proof journey and attack panels', async ({ page }) => {
+    await open(page, 'dark');
+    await driveToProved(page);
+    await expectNoHorizontalOverflow(page, '380px / proof generated');
+
+    await page.locator('#verify-button').click();
+    await expect(page.locator('#verify-result')).toHaveClass(/success/);
+    await expectNoHorizontalOverflow(page, '380px / verifier accepted');
+
+    await page.locator('#tamper-run').click();
+    await expect(page.locator('#tamper-result')).toContainText('Reference verifier');
+    await page.locator('#replay-run').click();
+    await expect(page.locator('#replay-result')).toContainText('Rejected');
+    await page.locator('#cheat-upper').click();
+    await page.locator('#cheat-negative').click();
+    await expect(page.locator('#cheat-result')).not.toBeEmpty();
+    await expectNoHorizontalOverflow(page, '380px / rejected verdicts');
+
+    await page.locator('#export-proof').click();
+    await expect(page.locator('#portable-result')).toContainText('Exported');
+    await page.locator('#import-proof').click();
+    await expect(page.locator('#portable-result')).toContainText('accepted');
+    await expectNoHorizontalOverflow(page, '380px / imported proof accepted');
+
+    await page.locator('#commitment-hex').fill('not-hex');
+    await page.locator('#import-proof').click();
+    await expect(page.locator('#portable-result')).toContainText('Import failed');
+    await expectNoHorizontalOverflow(page, '380px / import failed');
+  });
+
+  test('no horizontal page scroll with the result tables rendered', async ({ page }) => {
+    await open(page, 'dark');
+    await page.locator('#aggregate-run').click();
+    await expect(page.locator('#aggregate-run-result')).toContainText('aggregate', {
+      timeout: 60_000,
+    });
+    await page.locator('#bench-run').click();
+    await expect(page.locator('#bench-result table')).toBeVisible({ timeout: 120_000 });
+    await expectNoHorizontalOverflow(page, '380px / aggregate + benchmark tables');
+  });
+
+  test('no horizontal page scroll with any glossary popover open', async ({ page }) => {
+    await open(page, 'dark');
+    await driveToProved(page);
+    const terms = page.locator('.gloss:visible');
+    const count = await terms.count();
+    expect(count, 'expected glossary terms to focus').toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const term = terms.nth(i);
+      await term.focus();
+      await expect(term.locator('.gloss-pop')).toBeVisible();
+      await expectNoHorizontalOverflow(page, `380px / glossary popover ${i} open`);
+      const { left, right, width } = await term
+        .locator('.gloss-pop')
+        .evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, right: r.right, width: document.documentElement.clientWidth };
+        });
+      expect(left, `glossary popover ${i} starts off the left edge`).toBeGreaterThanOrEqual(0);
+      expect(right, `glossary popover ${i} runs off the right edge`).toBeLessThanOrEqual(width);
+    }
+  });
+});

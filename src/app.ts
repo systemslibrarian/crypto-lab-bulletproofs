@@ -293,20 +293,67 @@ export function initializeApp(container: HTMLElement): void {
   };
   container.addEventListener('pointerover', anchorGloss);
   container.addEventListener('focusin', anchorGloss);
+
+  // A hidden popover (visibility:hidden) still occupies layout, so one that
+  // sits past the right edge makes the whole page scroll sideways at phone
+  // width before anyone hovers anything. Keep EVERY popover inside the
+  // viewport, re-checking whenever glossary terms are rendered or the
+  // viewport changes size. (Skipped where there is no layout to fit, such as
+  // the linkedom DOM the smoke scripts mount the app into.)
+  if (typeof MutationObserver !== 'function' || typeof requestAnimationFrame !== 'function') return;
+  let glossFrame = 0;
+  const scheduleGlossFit = () => {
+    if (glossFrame) return;
+    glossFrame = requestAnimationFrame(() => {
+      glossFrame = 0;
+      fitAllGlosses(container);
+    });
+  };
+  new MutationObserver(scheduleGlossFit).observe(container, { childList: true, subtree: true });
+  window.addEventListener('resize', scheduleGlossFit);
+  scheduleGlossFit();
 }
 
-/** Pick a left/center/right anchor for a glossary popover based on its position. */
+/**
+ * Shift every glossary popover horizontally so it lies inside the viewport.
+ * Resets all shifts first, then reads every rect, then writes, so the pass
+ * costs one layout rather than one per term.
+ */
+function fitAllGlosses(root: HTMLElement): void {
+  const pops = Array.from(root.querySelectorAll<HTMLElement>('.gloss-pop'));
+  const vw = document.documentElement.clientWidth || window.innerWidth || 0;
+  if (!vw || pops.length === 0) return;
+  for (const pop of pops) pop.style.removeProperty('--gloss-dx');
+  const shifts = pops.map((pop) => glossShift(pop.getBoundingClientRect(), vw));
+  pops.forEach((pop, i) => {
+    if (shifts[i] !== 0) pop.style.setProperty('--gloss-dx', `${shifts[i]}px`);
+  });
+}
+
+/** The horizontal shift that brings a popover rect within [8, vw - 8]. */
+function glossShift(r: DOMRect, vw: number): number {
+  if (r.width === 0) return 0;
+  let dx = 0;
+  if (r.right > vw - 8) dx = vw - 8 - r.right;
+  if (r.left + dx < 8) dx = 8 - r.left;
+  return Math.round(dx);
+}
+
+/**
+ * Re-fit one glossary popover on hover/focus. It used to pick a gloss-left /
+ * gloss-right anchor class from the term's CENTRE, which disagreed with the
+ * narrow-viewport CSS (anchored at the term's left edge) and let a visible
+ * popover run off the right edge; it now measures the popover itself.
+ */
 function positionGloss(el: HTMLElement): void {
   const pop = el.querySelector('.gloss-pop') as HTMLElement | null;
   if (!pop) return;
   el.classList.remove('gloss-left', 'gloss-right');
-  const rect = el.getBoundingClientRect();
-  const vw = window.innerWidth || 0;
+  const vw = document.documentElement.clientWidth || window.innerWidth || 0;
   if (!vw) return;
-  const center = rect.left + rect.width / 2;
-  const popW = pop.offsetWidth || 288;
-  if (center - popW / 2 < 8) el.classList.add('gloss-left');
-  else if (center + popW / 2 > vw - 8) el.classList.add('gloss-right');
+  pop.style.removeProperty('--gloss-dx');
+  const dx = glossShift(pop.getBoundingClientRect(), vw);
+  if (dx !== 0) pop.style.setProperty('--gloss-dx', `${dx}px`);
 }
 
 /** Re-render the journey progress stepper from current app state. */
