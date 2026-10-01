@@ -72,7 +72,9 @@ npm test         # crypto suite + serialization + aggregate + batch-verifier + h
 npm run build    # production build (type-checks, then bundles)
 ```
 
-CI runs on every push: see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+CI runs on every push and pull request: see [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+Its `build` job runs `npm test`, `npm run build` and the Chromium accessibility gate, and
+both the Pages deploy and the Dependabot auto-merge name that job in `needs:`.
 
 ---
 
