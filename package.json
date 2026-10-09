@@ -5,17 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run test:publish-request && tsc && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && gh-pages -d dist",
+    "deploy": "gh workflow run deploy.yml --repo systemslibrarian/crypto-lab-bulletproofs --ref main",
     "test": "tsx scripts/test-suite.mjs && tsx scripts/test-boundaries.mjs && tsx scripts/test-serialize.mjs && tsx scripts/test-true-aggregate.mjs && tsx scripts/test-batch-verify.mjs && tsx scripts/test-extras.mjs && tsx scripts/test-ipa.mjs && tsx scripts/test-proof.mjs && tsx scripts/smoke-ui.mjs && tsx scripts/test-a11y.mjs",
-    "test:a11y": "playwright test"
+    "test:a11y": "playwright test",
+    "test:publish-request": "node --test tests/publish-request.node.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
-    "gh-pages": "^6.1.0",
     "linkedom": "^0.18.13",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
