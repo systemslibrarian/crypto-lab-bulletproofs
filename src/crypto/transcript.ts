@@ -23,7 +23,7 @@ export interface TranscriptEntry {
  * Fiat-Shamir Transcript with labeled domain separation.
  */
 export class Transcript {
-  private state: Uint8Array;
+  private fiatShamirState: Uint8Array;
   private entries: TranscriptEntry[] = [];
 
   /**
@@ -33,7 +33,7 @@ export class Transcript {
   constructor(domainLabel: string = 'libBulletproofs') {
     // Initialize with domain label
     const labelBytes = new TextEncoder().encode(domainLabel);
-    this.state = sha512(labelBytes);
+    this.fiatShamirState = sha512(labelBytes);
   }
 
   /**
@@ -41,7 +41,7 @@ export class Transcript {
    */
   appendLabel(label: string): void {
     const labelBytes = new TextEncoder().encode(label);
-    this.state = sha512(this.concatBytes(this.state, labelBytes));
+    this.fiatShamirState = sha512(this.concatBytes(this.fiatShamirState, labelBytes));
     this.entries.push({
       type: 'label',
       label,
@@ -56,7 +56,7 @@ export class Transcript {
     const pointBytes = p.toBytes();
     const labelBytes = new TextEncoder().encode(label);
     const combined = this.concatBytes(labelBytes, pointBytes);
-    this.state = sha512(this.concatBytes(this.state, combined));
+    this.fiatShamirState = sha512(this.concatBytes(this.fiatShamirState, combined));
     this.entries.push({
       type: 'point',
       label,
@@ -72,7 +72,7 @@ export class Transcript {
     const scalarBytes = scalarToBytes(s);
     const labelBytes = new TextEncoder().encode(label);
     const combined = this.concatBytes(labelBytes, scalarBytes);
-    this.state = sha512(this.concatBytes(this.state, combined));
+    this.fiatShamirState = sha512(this.concatBytes(this.fiatShamirState, combined));
     this.entries.push({
       type: 'scalar',
       label,
@@ -87,7 +87,7 @@ export class Transcript {
    */
   challengeScalar(label: string): bigint {
     const labelBytes = new TextEncoder().encode(label);
-    const combined = this.concatBytes(labelBytes, this.state);
+    const combined = this.concatBytes(labelBytes, this.fiatShamirState);
     let challengeBytes = sha512(combined);
     let challenge = bytesToScalar(challengeBytes.slice(0, 32));
 
@@ -101,7 +101,7 @@ export class Transcript {
     }
 
     // Update state for next round
-    this.state = challengeBytes;
+    this.fiatShamirState = challengeBytes;
 
     this.entries.push({
       type: 'challenge',
