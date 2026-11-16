@@ -8,7 +8,7 @@
 
 const TERMS: Record<string, string> = {
   'Pedersen commitment':
-    'A hiding, binding commitment V = v·g + γ·h. It reveals nothing about v, yet v can never be opened two different ways.',
+    'A commitment V = v·g + γ·h that is perfectly hiding and computationally binding: it reveals nothing at all about v, and nobody who cannot compute discrete logarithms can open it to two different values.',
   blinder:
     'A random scalar γ (the blinding factor) that hides the value inside a commitment.',
   'Fiat–Shamir':

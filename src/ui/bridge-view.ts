@@ -4,16 +4,18 @@
  * The demo shows two endpoints — "prove each bit is 0/1" (bit-grid) and "fold
  * two 64-length vectors" (IPA) — but the conceptual link between them is the
  * heart of Bulletproofs. This panel builds that link explicitly: from the bit
- * vector a_L the prover derives two vectors
+ * vector a_L the prover derives two vector polynomials whose constant terms are
  *
- *     l = a_L − z·1ⁿ
- *     r = yⁿ ∘ (a_R + z·1ⁿ) + z²·2ⁿ,   a_R = a_L − 1ⁿ
+ *     l(0) = a_L − z·1ⁿ
+ *     r(0) = yⁿ ∘ (a_R + z·1ⁿ) + z²·2ⁿ,   a_R = a_L − 1ⁿ
  *
- * and the single scalar t̂ = ⟨l, r⟩. Proving that ONE inner product equals t̂
- * certifies all 64 bit-constraints at once. We recompute the first few entries
- * of l and r honestly from the real value and the real Fiat–Shamir challenges,
- * so the arrays shown are exactly what the live proof used (evaluated at X = x,
- * dropping the s_L / s_R blinding terms, which cancel in ⟨l,r⟩'s constant term).
+ * Those are the two vectors of eq. (39) in section 4.1 of the Bulletproofs
+ * paper, so ⟨l(0), r(0)⟩ = t₀ = z²·v + δ(y,z): collapsing all 64
+ * bit-constraints into ONE inner product is what that identity buys. It is NOT
+ * t̂. The proof sends the blinded vectors l(x) = l(0) + s_L·x and
+ * r(x) = r(0) + s_R·x — the blinding is what makes them safe to send — and
+ * t̂ = t(x) = ⟨l(x), r(x)⟩. The entries below are the constant terms,
+ * recomputed here from the real value and the real Fiat–Shamir challenges y, z.
  */
 
 import { addScalars, mulScalars, negScalar } from '../crypto/scalar';
@@ -92,22 +94,22 @@ export function renderBridge(
 
   return `
     <div class="bridge">
-      <p class="panel-copy bridge-lead">From the 64 bits <code>a<sub>L</sub></code>, the prover derives two vectors and one scalar. Showing the first ${SHOW} of 64 entries (evaluated at the live challenges):</p>
+      <p class="panel-copy bridge-lead">From the 64 bits <code>a<sub>L</sub></code>, the prover derives two vectors and one scalar. Showing the first ${SHOW} of 64 entries, built from the live challenges <code>y</code> and <code>z</code>:</p>
       <div class="bridge-rows" role="group" aria-label="Derived vectors l and r alongside the bits">
         <div class="bridge-line">
           <span class="bridge-tag"><code>a<sub>L</sub></code> <span class="bridge-tag-sub">the bits</span></span>
           <span class="bridge-vec" aria-label="first 8 bits">${bitRow}<span class="bridge-ell">…</span></span>
         </div>
         <div class="bridge-line">
-          <span class="bridge-tag"><code>l = a<sub>L</sub> − z·1ⁿ</code></span>
-          <span class="bridge-vec" aria-label="first 8 entries of l">${lRow}<span class="bridge-ell">…</span></span>
+          <span class="bridge-tag"><code>l(0) = a<sub>L</sub> − z·1ⁿ</code> <span class="bridge-tag-sub">constant term of l(X)</span></span>
+          <span class="bridge-vec" aria-label="first 8 entries of the constant term of l">${lRow}<span class="bridge-ell">…</span></span>
         </div>
         <div class="bridge-line">
-          <span class="bridge-tag"><code>r = yⁿ∘(a<sub>R</sub>+z·1ⁿ) + z²·2ⁿ</code></span>
-          <span class="bridge-vec" aria-label="first 8 entries of r">${rRow}<span class="bridge-ell">…</span></span>
+          <span class="bridge-tag"><code>r(0) = yⁿ∘(a<sub>R</sub>+z·1ⁿ) + z²·2ⁿ</code> <span class="bridge-tag-sub">constant term of r(X)</span></span>
+          <span class="bridge-vec" aria-label="first 8 entries of the constant term of r">${rRow}<span class="bridge-ell">…</span></span>
         </div>
       </div>
-      <p class="bridge-punch">Proving the single inner product <code>⟨l, r⟩ = t̂</code> certifies all 64 bit-constraints at once — <strong>that</strong> is why a range claim becomes one inner product, which the folding below then collapses in <code>log₂(64) = 6</code> rounds.</p>
+      <p class="bridge-punch">Multiply those two rows out and you get one scalar, <code>⟨l(0), r(0)⟩ = t₀ = z²·v + δ(y,z)</code> — <strong>that</strong> is why all 64 bit-constraints become a single inner product. What the prover actually sends is the blinded pair <code>l = l(0) + s<sub>L</sub>·x</code> and <code>r = r(0) + s<sub>R</sub>·x</code>, without which the vectors would leak <code>a<sub>L</sub></code>; their inner product is <code>t̂ = t(x)</code>, and that is the one the folding below collapses in <code>log₂(64) = 6</code> rounds.</p>
     </div>`;
 }
 
@@ -115,7 +117,7 @@ export function renderBridge(
 export function bridgePlaceholder(): string {
   return `
     <div class="bridge">
-      <p class="panel-copy">The range proof never checks "is v &lt; 2⁶⁴?" directly. Instead it turns the 64 bits <code>a<sub>L</sub></code> into two vectors <code>l</code> and <code>r</code> whose inner product <code>⟨l, r⟩ = t̂</code> encodes every bit-constraint at once.</p>
-      <p class="panel-copy">Generate a proof to see <code>l</code> and <code>r</code> built from your value's real bits and the live Fiat–Shamir challenges.</p>
+      <p class="panel-copy">The range proof never checks "is v &lt; 2⁶⁴?" directly. Instead it turns the 64 bits <code>a<sub>L</sub></code> into two vectors whose inner product is a single scalar encoding every bit-constraint at once: the constant terms give <code>t₀ = z²·v + δ(y,z)</code>, and the blinded vectors the prover actually sends give <code>t̂ = t(x)</code>.</p>
+      <p class="panel-copy">Generate a proof to see <code>l(0)</code> and <code>r(0)</code> built from your value's real bits and the live Fiat–Shamir challenges.</p>
     </div>`;
 }

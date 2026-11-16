@@ -682,7 +682,7 @@ function runCheatDemo(value: bigint): void {
           ? '✓ These are different points, so the proof is rejected — the published commitment does not open to the witness the prover could actually prove.'
           : '✗ ' + verifierMessage}
     </div>
-    <p class="panel-copy cheat-foot">This is the <strong>binding</strong> property doing its job: a commitment can be opened only one way, so a malicious prover cannot make an out-of-range value look in-range.</p>
+    <p class="panel-copy cheat-foot">This is the <strong>binding</strong> property doing its job: a Pedersen commitment is computationally binding under the discrete-log assumption, so a prover who cannot compute discrete logarithms cannot open one two different ways — and so cannot make an out-of-range value look in-range.</p>
   `;
 
   setAppStatus(

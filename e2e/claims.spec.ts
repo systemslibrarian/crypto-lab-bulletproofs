@@ -237,8 +237,12 @@ test('the bits-to-inner-product bridge uses the real bits of the committed value
   );
   // …and the l and r rows are populated from the live challenges, not blank
   const bridge = await text(page, 'bridge-content');
-  expect(bridge).toContain('l = aL − z·1ⁿ');
-  expect(bridge).toContain('⟨l, r⟩ = t̂');
+  expect(bridge).toContain('l(0) = aL − z·1ⁿ');
+  // The rows are the CONSTANT terms of l(X), r(X) — no s_L·x / s_R·x — so their
+  // inner product is t₀ = z²·v + δ(y,z) (Bulletproofs § 4.1, eq. 39), not t̂.
+  // t̂ = t(x) is the inner product of the blinded vectors the proof sends.
+  expect(bridge).toContain('⟨l(0), r(0)⟩ = t₀ = z²·v + δ(y,z)');
+  expect(bridge).not.toContain('⟨l, r⟩ = t̂');
   await expect(page.locator('.bridge-line')).toHaveCount(3);
   const rowLens = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.bridge-vec')).map((r) => r.querySelectorAll('.bridge-cell').length),
@@ -281,6 +285,12 @@ for (const [label, buttonId, value] of [
     await expect(verdict).toContainText('✓');
     await expect(verdict).not.toContainText('UNEXPECTEDLY');
     expect(body).toContain('does not open to the witness');
+    // Pedersen commitments are perfectly hiding and COMPUTATIONALLY binding
+    // under the discrete-log assumption (Bulletproofs § 2.2, and § 4.6 on what
+    // a discrete-log break would buy), so the page must not say a commitment
+    // can only ever be opened one way.
+    expect(body).toContain('computationally binding under the discrete-log assumption');
+    expect(body).not.toContain('can be opened only one way');
     await expect(page.locator('#app-status')).toContainText('verifier rejected');
   });
 }
