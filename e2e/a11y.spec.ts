@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 import { auditContrast, formatContrastFailures } from './contrast';
+import { auditControlNames, formatControlNameFailures } from './control-names';
 import { expectNoHorizontalOverflow } from './reflow';
 
 /**
@@ -106,6 +107,10 @@ async function scan(page: Page, label: string): Promise<void> {
     formatContrastFailures(failures),
     `measured contrast failures in state: ${label}`
   ).toEqual([]);
+  // axe's `label` rule accepts a bare `placeholder` as an accessible name, so a
+  // deleted label can leave this gate green. See `control-names.ts`.
+  const unnamed = formatControlNameFailures(await auditControlNames(page));
+  expect(unnamed, `form controls named only by placeholder/title in state: ${label}`).toEqual([]);
 }
 
 async function driveToProved(page: Page): Promise<void> {
