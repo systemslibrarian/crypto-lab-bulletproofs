@@ -13,7 +13,9 @@
  * paper, so ⟨l(0), r(0)⟩ = t₀ = z²·v + δ(y,z): collapsing all 64
  * bit-constraints into ONE inner product is what that identity buys. It is NOT
  * t̂. The proof sends the blinded vectors l(x) = l(0) + s_L·x and
- * r(x) = r(0) + s_R·x — the blinding is what makes them safe to send — and
+ * r(x) = r(0) + (yⁿ ∘ s_R)·x — the paper blinds a_R inside the yⁿ Hadamard
+ * product, r(X) = yⁿ ∘ (a_R + z·1ⁿ + s_R·X) + z²·2ⁿ, so the X coefficient of
+ * r carries the yⁿ factor too (see r1 in src/proofs/range-proof.ts) — and
  * t̂ = t(x) = ⟨l(x), r(x)⟩. The entries below are the constant terms,
  * recomputed here from the real value and the real Fiat–Shamir challenges y, z.
  */
@@ -109,7 +111,7 @@ export function renderBridge(
           <span class="bridge-vec" aria-label="first 8 entries of the constant term of r">${rRow}<span class="bridge-ell">…</span></span>
         </div>
       </div>
-      <p class="bridge-punch">Multiply those two rows out and you get one scalar, <code>⟨l(0), r(0)⟩ = t₀ = z²·v + δ(y,z)</code> — <strong>that</strong> is why all 64 bit-constraints become a single inner product. What the prover actually sends is the blinded pair <code>l = l(0) + s<sub>L</sub>·x</code> and <code>r = r(0) + s<sub>R</sub>·x</code>, without which the vectors would leak <code>a<sub>L</sub></code>; their inner product is <code>t̂ = t(x)</code>, and that is the one the folding below collapses in <code>log₂(64) = 6</code> rounds.</p>
+      <p class="bridge-punch">Multiply those two rows out and you get one scalar, <code>⟨l(0), r(0)⟩ = t₀ = z²·v + δ(y,z)</code> — <strong>that</strong> is why all 64 bit-constraints become a single inner product. What the prover actually sends is the blinded pair <code>l = l(0) + s<sub>L</sub>·x</code> and <code>r = r(0) + (yⁿ∘s<sub>R</sub>)·x</code>, without which the vectors would leak <code>a<sub>L</sub></code>; their inner product is <code>t̂ = t(x)</code>, and that is the one the folding below collapses in <code>log₂(64) = 6</code> rounds.</p>
     </div>`;
 }
 

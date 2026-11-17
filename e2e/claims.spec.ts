@@ -243,6 +243,11 @@ test('the bits-to-inner-product bridge uses the real bits of the committed value
   // t̂ = t(x) is the inner product of the blinded vectors the proof sends.
   expect(bridge).toContain('⟨l(0), r(0)⟩ = t₀ = z²·v + δ(y,z)');
   expect(bridge).not.toContain('⟨l, r⟩ = t̂');
+  // The blinded r the proof sends carries the yⁿ factor on its X coefficient:
+  // the paper's r(X) = yⁿ ∘ (a_R + z·1ⁿ + s_R·X) + z²·2ⁿ blinds a_R INSIDE the
+  // Hadamard product, which is why range-proof.ts sets r1[i] = y^i · s_R[i].
+  expect(bridge).toContain('r = r(0) + (yⁿ∘sR)·x');
+  expect(bridge).not.toContain('r = r(0) + sR·x');
   await expect(page.locator('.bridge-line')).toHaveCount(3);
   const rowLens = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.bridge-vec')).map((r) => r.querySelectorAll('.bridge-cell').length),
