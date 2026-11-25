@@ -365,6 +365,14 @@ test('exported proof re-verifies, and corrupted bytes never do', async ({ page }
   await page.locator('#import-proof').click();
   await expect(page.locator('#portable-result')).toContainText('✓ Verifier accepted');
 
+  for (const [id, original] of [['export-output', hex], ['commitment-hex', commit]] as const) {
+    await page.locator('#' + id).fill(original.slice(0, -2));
+    await expect(page.locator('#portable-result')).toContainText('Verify the current bytes');
+    await page.locator('#' + id).fill(original);
+    await page.locator('#import-proof').click();
+    await expect(page.locator('#portable-result')).toContainText('✓ Verifier accepted');
+  }
+
   const flip = (h: string, i: number) => h.slice(0, i) + (h[i] === '0' ? '1' : '0') + h.slice(i + 1);
   // t̂ sits after A, S, T1, T2, tau_x, mu = 6 × 32 B, so byte 192 → hex index 384.
   const tHatHexIndex = 6 * POINT * 2;
@@ -445,7 +453,7 @@ test('the aggregation estimate matches the real aggregated proof it predicts', a
     expect(bars.map((b) => b.bytes)).toEqual([batched, aggregated, naive]);
     const widest = bars.reduce((a, b) => (b.bytes > a.bytes ? b : a));
     expect(widest.width).toBe(100);
-    for (const b of bars) expect(b.width).toBeLessThanOrEqual(100);
+    for (const b of bars) expect(b.width).toBeCloseTo(100 * b.bytes / widest.bytes, 3);
 
     // now build the real thing and compare it with the estimate above
     await page.locator('#aggregate-run').click();
@@ -493,6 +501,14 @@ test('a non-power-of-two batch size snaps down, and the panel describes it corre
     'down to the largest power of two ≤ 7',
   );
   expect(run).not.toContain('nearest power of two');
+  await expect(page.locator('#aggregate-summary')).toContainText('864 bytes');
+  await expect(page.locator('#aggregate-summary')).toContainText('8 padded slots');
+  expect(run).toContain('800 B');
+  await page.locator('#aggregate-count').fill('3');
+  await expect(page.locator('#aggregate-summary')).toContainText('800 bytes');
+  await expect(page.locator('#aggregate-run-result')).toContainText('verify the new selection');
+  await expect(page.locator('#app-status')).not.toContainText('True aggregated proof for');
+
 });
 
 // ---------------------------------------------------------------------------

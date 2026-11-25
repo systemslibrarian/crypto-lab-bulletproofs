@@ -237,6 +237,9 @@ export function initializeApp(container: HTMLElement): void {
     aggregateCount.addEventListener('input', () => {
       renderAggregateEstimate();
       renderProofSizeChart();
+      const result = document.getElementById('aggregate-run-result');
+      if (result) result.textContent = 'Run the aggregate proof to verify the new selection.';
+      setAppStatus('Aggregate selection changed. Run the proof to check this selection.');
     });
   }
 
@@ -259,6 +262,12 @@ export function initializeApp(container: HTMLElement): void {
   if (exportButton) exportButton.addEventListener('click', () => exportProof());
   const importButton = document.getElementById('import-proof');
   if (importButton) importButton.addEventListener('click', () => importProof());
+  const portableStatus = document.getElementById('portable-result');
+  for (const id of ['export-output', 'commitment-hex']) {
+    document.getElementById(id)?.addEventListener('input', () => {
+      if (portableStatus) portableStatus.textContent = 'Edited proof or commitment. Verify the current bytes.';
+    });
+  }
 
   const tamperButton = document.getElementById('tamper-run');
   if (tamperButton) tamperButton.addEventListener('click', () => runTamperDemo());
@@ -570,7 +579,7 @@ function createAggregatePanelMarkup(): string {
   return `
     <h3>Batched Proofs</h3>
     <p class="panel-copy"><strong>Why aggregate at all?</strong> Proving <em>m</em> values separately costs <em>m</em> full proofs. A true aggregated Bulletproof proves all <em>m</em> at once by sharing one set of ${gloss('Fiat–Shamir')} challenges and running a <em>single</em> ${gloss('inner-product argument')} over the concatenated bit-vectors — so the proof grows like <code>log₂(m·64)</code>, only a couple of extra rounds, not <em>m</em>× the bytes.</p>
-    <p class="panel-copy">This demo runs the single-value protocol once per value, bound to a shared transcript. The bars below contrast that "batched" cost with what a true aggregate would cost in theory. Use the button to also run a real aggregated proof for power-of-two batch sizes.</p>
+    <p class="panel-copy">The bars estimate the bytes for separate proofs and a single aggregated proof. The aggregate estimate pads to a power of two. The live button builds and verifies a proof for the largest supported power of two within your selection.</p>
     <div class="control-group stack-on-mobile">
       <label for="aggregate-count">Values:</label>
       <input id="aggregate-count" type="range" min="1" max="${MAX_AGGREGATE_VALUES}" value="4" aria-describedby="aggregate-count-value" />
@@ -618,6 +627,7 @@ function renderAggregateEstimate(): void {
     <div><strong>True aggregated Bulletproof (theoretical):</strong> ${aggregatedBytes} bytes</div>
     <div><strong>Naive disjunctive Schnorr (theoretical):</strong> ${naiveBytes} bytes</div>
     <div><strong>Bytes a true aggregate would save vs this demo:</strong> ${savedBytes}</div>
+    ${Number.isInteger(Math.log2(count)) ? '' : `<div>The estimate covers all ${count} values using ${2 ** Math.ceil(Math.log2(count))} padded slots. The live button uses the first ${2 ** Math.floor(Math.log2(count))} values.</div>`}
   `;
 }
 
@@ -743,7 +753,7 @@ function renderProofSizeChart(): void {
   const maxBytes = Math.max(...values.map((entry) => entry.bytes));
   container.innerHTML = values
     .map((entry) => {
-      const width = Math.max(12, Math.round((entry.bytes / maxBytes) * 100));
+      const width = (entry.bytes / maxBytes) * 100;
       return `
         <div class="chart-row">
           <div class="chart-label">${entry.label}</div>
@@ -758,7 +768,7 @@ function renderProofSizeChart(): void {
 }
 
 function bulletproofBytes(bits: number): number {
-  return Math.round((2 * Math.log2(bits) + 9) * 32);
+  return (2 * Math.ceil(Math.log2(bits)) + 9) * 32;
 }
 
 function schnorrBytes(bits: number): number {
